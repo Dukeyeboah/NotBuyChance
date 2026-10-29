@@ -25,6 +25,10 @@ import {
   shareGenderWithModel,
   tasteCompleteness,
 } from "../lib/discovery-rules";
+import { currencyForCountry } from "../lib/countries";
+import { currencyName } from "../lib/format";
+import { firstName } from "../lib/text";
+import { pdfFilename, buildFindingsPdf } from "../components/download-report";
 import type { Recommendation } from "../types/discovery";
 
 assert.equal(reduceNumber(11), 11);
@@ -43,7 +47,13 @@ const cosmic = buildCosmicProfile("Maya", "1997-08-01");
 assert.ok(cosmic);
 assert.equal(cosmic?.sunSign, "Leo");
 assert.match(cosmic?.reading || "", /entertainment/i);
+assert.match(cosmic?.reading || "", /creative|spotlight|quality/i);
 assert.doesNotMatch(cosmic?.reading || "", /she loves luxury/i);
+assert.equal(firstName("Judith Nana Afrakuma Bannerman Quist"), "Judith");
+assert.equal(currencyForCountry("Ghana"), "GHS");
+assert.equal(currencyForCountry("China"), "CNY");
+assert.equal(currencyForCountry("United States"), "USD");
+assert.equal(currencyName("USD"), "US dollars");
 
 assert.equal(
   conflictsWithDislike("A packed stadium show with loud crowds", "Loud, overcrowded venues."),
@@ -190,4 +200,38 @@ assert.equal(cosmicThemesApply({ mode: "fusion", cosmicInfluence: "little", cosm
 assert.equal(shareGenderWithModel({ genderOpenness: "open", gender: "female" }), false);
 assert.equal(qlooGenderFilterApplied(), false);
 
+assert.equal(pdfFilename("Maya"), "NotBuyChance_Maya_Discovery.pdf");
+assert.equal(pdfFilename("Maya").endsWith(".html"), false);
+void (async () => {
+const findings = await buildFindingsPdf(
+  { ...sampleDraft(), mode: "fusion", birthDate: "1997-08-01", feedback: [{ id: "f", title: "Quiet bar", reaction: "love", createdAt: "2026-10-29T00:00:00.000Z" }] },
+  {
+    summary: "A short overview for Maya.",
+    recommendations: [{ ...card("Quiet bar", "music", true), description: "A small room and a good trio.", rationale: "Jazz was named outright." }],
+    unexpected: { ...card("Coastal weekend", "experiences", false), rank: 2, description: "A slower weekend.", rationale: "Travel sits next to the music." },
+    trace: {
+      planSource: "fallback",
+      entityQueries: [],
+      resolvedEntities: [],
+      tagsUsed: [],
+      insightCalls: [],
+      externalSearches: [],
+      limitations: [],
+      cosmicUsed: true,
+      qlooFailed: false,
+    },
+  },
+);
+const pdf = findings.output();
+assert.match(pdf, /^%PDF/);
+assert.equal(pdf.includes("<!DOCTYPE html>"), false);
+assert.match(pdf, /Maya/);
+assert.match(pdf, /Fusion/);
+assert.match(pdf, /Quiet bar/);
+assert.match(pdf, /Something you might not have considered|Coastal weekend/);
+
 console.log("logic checks passed");
+})().catch((error: unknown) => {
+  console.error(error);
+  process.exit(1);
+});

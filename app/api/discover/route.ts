@@ -18,6 +18,9 @@ function clientMessage(error: unknown): string {
   const message = error instanceof Error ? error.message : "";
   if (message.includes("QLOO_API_KEY")) return "Qloo isn't configured on the server.";
   if (message.includes("OPENAI_API_KEY")) return "The language model isn't configured on the server.";
+  if (message.includes("rejected the API key")) {
+    return "Qloo rejected the API key. The key and QLOO_API_BASE need to be for the same host.";
+  }
   if (message.includes("Qloo request failed")) return "Qloo didn't respond. You can try again.";
   if (message.includes("Model request failed")) return "The discovery model didn't respond. You can try again.";
   return "Discovery didn't finish. You can try again.";

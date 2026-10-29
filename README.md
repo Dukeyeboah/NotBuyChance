@@ -64,7 +64,7 @@ cp .env.example .env.local
 npm run dev
 ```
 
-Open [http://localhost:3000](http://localhost:3000). Judges can use **Try a Sample Discovery** without an account. Maya in Accra is fictional, and the button runs this same agent.
+Open [http://localhost:3000](http://localhost:3000). **Try the demo** runs Maya in Accra without an account. She is fictional, and the button runs this same agent.
 
 ```bash
 npm run check
@@ -76,10 +76,11 @@ npm run lint
 | Variable | Required | Purpose |
 | --- | --- | --- |
 | `QLOO_API_KEY` | Yes | Server-side Qloo key. Never exposed to the browser. |
-| `QLOO_API_BASE` | Yes | `https://hackathon.api.qloo.com` or `https://api.qloo.com` |
+| `QLOO_API_BASE` | Yes | `https://api.qloo.com` for this production key. A hackathon key needs `https://hackathon.api.qloo.com` instead. If the variable is missing, the app calls `https://api.qloo.com`. |
 | `OPENAI_API_KEY` | Yes | Planner, explanations, refinement |
 | `OPENAI_MODEL` | No | Defaults to `gpt-4.1-mini` |
 | `SERPER_API_KEY` | No | Live event and place lookup |
+| `REPLICATE_API_TOKEN` | No | Cartoon illustrations on finding cards, via Replicate `openai/gpt-image-2` |
 | `NEXT_PUBLIC_FIREBASE_*` | No | Google and email sign-in, plus Firestore sync |
 
 Without Firebase, profiles stay in the browser. Rules for a connected project are in `firestore.rules`: a signed-in user can read and write only `users/{their uid}/**`.
@@ -96,20 +97,22 @@ Without Firebase, profiles stay in the browser. Rules for a connected project ar
 
 ## Devpost description
 
-NotBuyChance helps you find a gift or experience for a specific person, not a product search. You share a little of what they love, and an agent uses Qloo's taste graph to find cultural affinities across music, books, places, brands, and film, then explains which part came from you, which part came from Qloo, and which part is only an idea. Optional sun-sign and life-path themes stay symbolic and never outrank a real preference. Judges can try a fictional profile, Maya, without creating an account.
+NotBuyChance helps you find a gift or experience for a specific person, not a product search. You share a little of what they love, and an agent uses Qloo's taste graph to find cultural affinities across music, books, places, brands, and film, then explains which part came from you, which part came from Qloo, and which part is only an idea. Optional sun-sign and life-path themes stay symbolic and never outrank a real preference. The demo profile, Maya, runs without an account.
 
 ## Limits
 
 - Electronics are Qloo brand affinities, not a catalog of gadgets. Classes and many live experiences are not native entity types. Those stay ideas, or a web source when one is configured.
 - A Qloo place result is a known place, not a reservation. An event is "verified" only when the source text contains a date on or after today.
 - Accra place coverage can be thin. Nearby mode is allowed to offer ideas that are not in the city, and local-only mode drops places that are clearly somewhere else.
-- Prices are shown only when the source states the amount and the currency.
+- Prices are shown only when the source states the amount and the currency. Budget bands are labeled in US dollars, or in the currency that matches the selected country.
+- Finding cards include a web or maps search link so a gift can be looked up. Those are search links, not verified shops. A language model is a poor source of URLs, so the links are built from the title or copied from a real search result. `gpt-4.1-mini` is still the right planner.
+- Illustrations are cartoons from Replicate's GPT Image model when `REPLICATE_API_TOKEN` is set. They are imagined scenes, not photos of the person or proof the place looks that way.
 - Astrology and numerology are not personality assessments.
 - There is no checkout, social graph, or public directory of the people you profile.
 
 ## Status
 
-Implemented: landing page, sample profile, guided discovery, eight Qloo-aligned categories, Taste / Cosmic / Fusion, deterministic cosmic math, Qloo search and insights, optional Serper lookup, ranked explanations, a cross-category card when the evidence supports one, sparse-result prompts, feedback reasons, refinement, category focus, top 5 / top 10, basic-AI comparison, device profiles, optional cultural context, gender-open recommendations, and optional Firebase auth.
+Implemented: landing page, sample profile, guided discovery, eight Qloo-aligned categories, Taste / Cosmic / Fusion, deterministic cosmic math, Qloo search and insights, optional Serper lookup, ranked explanations, a cross-category card when the evidence supports one, sparse-result prompts, feedback reasons, refinement, category focus, top 5 / top 10, basic-AI comparison, device profiles, optional cultural context, gender-open recommendations, optional Firebase auth, a homepage preview that can feature one saved discovery, and a single PDF download of a discovery session.
 
 Checked in this workspace:
 

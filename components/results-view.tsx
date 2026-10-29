@@ -1,6 +1,6 @@
 "use client";
 
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import type {
   DiscoveryDraft,
   DiscoveryResult,
@@ -21,6 +21,11 @@ import {
 } from "@/lib/qloo/categories";
 import { guidanceFor, tasteCompleteness } from "@/lib/discovery-rules";
 import { budgetLabel, formatMoney } from "@/lib/format";
+import { lookupLinks } from "@/lib/links";
+import { firstName } from "@/lib/text";
+import { iconForCategory, utilityIcons } from "@/lib/icons";
+import { illustrationFor, requestIllustration } from "@/components/illustrations";
+import { downloadFindings } from "@/components/download-report";
 import { Button, TextArea } from "@/components/ui";
 
 function prettyType(type: string): string {
@@ -30,6 +35,8 @@ function prettyType(type: string): string {
 function RecommendationCard({
   item,
   name,
+  city,
+  country,
   reaction,
   saved,
   featured,
@@ -38,6 +45,8 @@ function RecommendationCard({
 }: {
   item: Recommendation;
   name: string;
+  city: string;
+  country: string;
   reaction?: Reaction;
   saved?: boolean;
   featured?: boolean;
@@ -45,30 +54,48 @@ function RecommendationCard({
   onSave?: () => void;
 }) {
   const [asking, setAsking] = useState(false);
+  const [drawing, setDrawing] = useState<string | undefined>(illustrationFor(item.id));
   const image = item.qlooEvidence.find((evidence) => evidence.imageUrl)?.imageUrl;
+  const links = lookupLinks(item, { city, country });
   const price =
     item.price.status === "verified" && item.price.amount != null && item.price.currency
-      ? formatMoney(item.price.amount, item.price.currency)
+      ? `${formatMoney(item.price.amount, item.price.currency)} ${item.price.currency}`
       : "Price unavailable";
 
+  useEffect(() => {
+    let cancelled = false;
+    if (drawing) return;
+    void requestIllustration({
+      id: item.id,
+      title: item.title,
+      description: item.description,
+      category: item.category,
+    }).then((url) => {
+      if (!cancelled && url) setDrawing(url);
+    });
+    return () => {
+      cancelled = true;
+    };
+  }, [drawing, item.category, item.description, item.id, item.title]);
+
   return (
-    <article className="rise rounded-[28px] border border-line bg-card p-5 shadow-[0_16px_40px_rgba(32,32,32,0.04)] sm:p-6">
-      <div className="flex items-start gap-4">
-        {image ? (
-          // Qloo hosts the image. A plain img avoids pretending we generated a photo.
-          <img
-            src={image}
-            alt=""
-            className="h-16 w-16 shrink-0 rounded-2xl object-cover"
-          />
+    <article className="rise lift flex h-full flex-col rounded-[28px] border border-line bg-card p-4 shadow-[0_16px_40px_rgba(79,70,229,0.06)] sm:p-5">
+      <div className={`relative mb-4 overflow-hidden rounded-[22px] ${drawing || image ? "" : "illustration-wait"}`}>
+        {drawing || image ? (
+          <img src={drawing || image} alt="" className="aspect-[3/2] w-full object-cover" />
         ) : (
-          <div className="flex h-16 w-16 shrink-0 items-center justify-center rounded-2xl bg-accent-soft font-display text-xl text-accent">
-            {featured ? "✦" : String(item.rank).padStart(2, "0")}
+          <div className="flex aspect-[3/2] items-center justify-center">
+            <span className="floaty font-display text-4xl text-accent">✦</span>
           </div>
         )}
+      </div>
+      <div className="flex items-start gap-4">
         <div className="min-w-0 flex-1">
-          <p className="text-sm text-muted">
-            {featured ? "Cross-category" : String(item.rank).padStart(2, "0")} · {categoryLabel(item.category)}
+          <p className="flex items-center gap-2 text-sm text-muted">
+            <img src={iconForCategory(item.category)} alt="" className="h-9 w-9 object-contain" />
+            <span>
+              {featured ? "Cross-category" : String(item.rank).padStart(2, "0")} · {categoryLabel(item.category)}
+            </span>
           </p>
           <h3 className="mt-1 font-display text-2xl leading-tight">{item.title}</h3>
           <div className="mt-3 flex flex-wrap gap-2 text-xs">
@@ -120,26 +147,16 @@ function RecommendationCard({
         ) : null}
       </dl>
 
-      {item.availabilityStatus === "verified_event" && item.externalSource ? (
-        <p className="mt-4 text-sm">
-          <a
-            className="font-medium text-accent-deep underline-offset-4 hover:underline"
-            href={item.externalSource.url}
-            target="_blank"
-            rel="noreferrer"
-          >
-            {item.externalSource.title}
-          </a>
-        </p>
-      ) : null}
-      {item.externalSource && item.availabilityStatus !== "verified_event" ? (
-        <p className="mt-4 text-sm text-muted">
-          Source to explore. We didn't verify that this is an upcoming event.{" "}
-          <a className="text-accent-deep underline-offset-4 hover:underline" href={item.externalSource.url} target="_blank" rel="noreferrer">
-            {item.externalSource.title}
-          </a>
-        </p>
-      ) : null}
+      <ul className="mt-4 space-y-2 text-sm">
+        {links.map((link) => (
+          <li key={link.href}>
+            <a className="font-medium text-accent-deep underline-offset-4 hover:underline" href={link.href} target="_blank" rel="noreferrer">
+              {link.label}
+            </a>
+            <p className="text-xs text-muted">{link.note}</p>
+          </li>
+        ))}
+      </ul>
 
       <details className="mt-5 rounded-2xl border border-line px-4 py-3">
         <summary className="cursor-pointer text-sm font-medium">Why this suggestion?</summary>
@@ -172,14 +189,14 @@ function RecommendationCard({
         </div>
       </details>
 
-      <div className="mt-5 flex flex-wrap gap-2">
+      <div className="mt-auto flex flex-wrap gap-2 pt-5">
         {(
           [
-            ["love", "Love this"],
-            ["maybe", "Maybe"],
-            ["not", "Not for them"],
+            ["love", "Love this", "react-love"],
+            ["maybe", "Maybe", "react-maybe"],
+            ["not", "Not for them", "react-skip"],
           ] as const
-        ).map(([value, label]) => (
+        ).map(([value, label, tone]) => (
           <button
             key={value}
             type="button"
@@ -192,9 +209,7 @@ function RecommendationCard({
               setAsking(false);
               onReact(value);
             }}
-            className={`min-h-11 rounded-full px-4 text-sm ${
-              reaction === value ? "chip-on" : "border border-line bg-card"
-            }`}
+            className={`min-h-11 rounded-full px-4 text-sm ${tone}`}
           >
             {label}
           </button>
@@ -204,9 +219,19 @@ function RecommendationCard({
             type="button"
             aria-pressed={saved}
             onClick={onSave}
-            className={`min-h-11 rounded-full px-4 text-sm ${saved ? "chip-on" : "border border-line bg-card"}`}
+            className={`react-save relative min-h-11 rounded-full px-4 text-sm ${saved ? "heart-pop" : ""}`}
           >
-            {saved ? "Saved" : "Save idea"}
+            {saved ? (
+              <img src={utilityIcons.favorites} alt="" className="heart-pop inline h-6 w-6 object-contain" />
+            ) : (
+              <span aria-hidden>♡</span>
+            )}
+            {saved ? " Saved" : " Save idea"}
+            {saved ? (
+              <span className="confetti" aria-hidden>
+                <i /><i /><i /><i /><i /><i />
+              </span>
+            ) : null}
           </button>
         ) : null}
       </div>
@@ -267,7 +292,8 @@ export function ResultsView({
   const [count, setCount] = useState<5 | 10>(draft.count || 5);
   const [message, setMessage] = useState("");
   const [dismissedPrompt, setDismissedPrompt] = useState(false);
-  const name = draft.name.trim() || "them";
+  const [pdfState, setPdfState] = useState<"idle" | "working" | "error">("idle");
+  const name = firstName(draft.name);
   const reactions = new Map(draft.feedback.map((item) => [item.title, item.reaction]));
   const completeness = tasteCompleteness(draft);
   const guide = guidanceFor(draft);
@@ -281,13 +307,36 @@ export function ResultsView({
     .slice(0, count);
 
   return (
-    <div className="mx-auto w-full max-w-3xl px-5 pb-20">
-      <p className="text-sm text-muted">Discoveries</p>
-      <h1 className="mt-2 font-display text-4xl leading-tight sm:text-5xl">
-        We found a few things {name} might love.
-      </h1>
-      <p className="mt-4 max-w-2xl text-lg leading-8 text-muted">
-        Based on what you've shared, we explored {name === "them" ? "their" : `${name}'s`} interests and found some possibilities worth considering.
+    <div className="mx-auto w-full max-w-[1440px] px-5 pb-20 lg:px-10">
+      <div className="flex flex-wrap items-end justify-between gap-4">
+        <div>
+          <p className="text-sm text-muted">Discoveries</p>
+          <h1 className="mt-2 font-display text-4xl leading-tight sm:text-5xl">
+            A few things {name === "them" ? "they" : name} might love.
+          </h1>
+        </div>
+        <div className="text-right">
+          <Button
+            variant="secondary"
+            disabled={pdfState === "working"}
+            onClick={() => {
+              setPdfState("working");
+              void downloadFindings(draft, result)
+                .then(() => setPdfState("idle"))
+                .catch(() => setPdfState("error"));
+            }}
+          >
+            {pdfState === "working" ? "Preparing PDF…" : "Download PDF"}
+          </Button>
+          {pdfState === "error" ? (
+            <p className="mt-2 text-sm text-muted">The PDF didn't finish. Try again.</p>
+          ) : null}
+        </div>
+      </div>
+      <p className="mt-4 max-w-3xl text-lg leading-8 text-muted">
+        {name === "them"
+          ? "Here's the fun version. We followed the tastes you mentioned and kept the ideas that actually felt like a fit."
+          : `Here's the fun version for ${name}. We followed the tastes you mentioned and kept the ideas that actually felt like ${name}.`}
       </p>
 
       <div className="mt-6 flex flex-wrap gap-2 text-sm">
@@ -460,12 +509,14 @@ export function ResultsView({
           )}
         </div>
       ) : (
-        <div className="mt-6 space-y-4">
+        <div className="mt-6 grid items-stretch gap-4 lg:grid-cols-2">
           {visible.map((item) => (
             <RecommendationCard
               key={item.id}
               item={item}
               name={name}
+              city={draft.city}
+              country={draft.country}
               reaction={reactions.get(item.title)}
               saved={draft.savedIdeas.includes(item.title)}
               onReact={(reaction, reason) => onReact(item, reaction, reason)}
@@ -477,13 +528,18 @@ export function ResultsView({
 
       {category === "all" && result.unexpected ? (
         <section className="unexpected-wrap mt-8 p-2">
-          <p className="px-3 pt-3 text-sm font-medium">Something you might not have considered</p>
+          <p className="flex items-center gap-2 px-3 pt-3 text-sm font-medium">
+            <img src="/assets/icons/surprise.png" alt="" className="icon-spark h-11 w-11 object-contain" />
+            Something you might not have considered
+          </p>
           <p className="px-3 pb-2 text-sm leading-6 text-muted">
             Here's an idea that connects a few of their interests in a less obvious way.
           </p>
           <RecommendationCard
             item={result.unexpected}
             name={name}
+            city={draft.city}
+            country={draft.country}
             featured
             reaction={reactions.get(result.unexpected.title)}
             saved={draft.savedIdeas.includes(result.unexpected.title)}
@@ -515,6 +571,7 @@ export function ResultsView({
         }}
       >
         <label className="block text-sm font-medium" htmlFor="refine">
+          <img src={utilityIcons.refine} alt="" className="mb-2 h-12 w-12 object-contain" />
           Want to tell us something else about {name}?
         </label>
         <TextArea

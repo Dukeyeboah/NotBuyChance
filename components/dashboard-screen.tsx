@@ -14,7 +14,8 @@ import {
   useAuthUser,
 } from "@/lib/firebase/client";
 import { RELATIONSHIP_LABELS } from "@/lib/qloo/categories";
-import { deletePerson, loadPeople, replacePeople, type StoredPerson } from "@/lib/storage";
+import { deletePerson, loadPeople, replacePeople, setFeaturedHomepagePreview, type StoredPerson } from "@/lib/storage";
+import { utilityIcons } from "@/lib/icons";
 import { Button, TextInput } from "@/components/ui";
 
 export function DashboardScreen() {
@@ -56,7 +57,7 @@ export function DashboardScreen() {
   const others = people.filter((person) => !mine.includes(person));
 
   return (
-    <div className="mx-auto w-full max-w-3xl px-5 pb-20">
+    <div className="mx-auto w-full max-w-[1440px] px-5 pb-20 lg:px-10">
       <h1 className="font-display text-4xl leading-tight sm:text-5xl">Who are we discovering today?</h1>
       <p className="mt-3 max-w-xl text-muted">
         {enabled
@@ -72,8 +73,11 @@ export function DashboardScreen() {
 
       {!ready ? <p className="mt-10 text-sm text-muted">Loading saved people...</p> : null}
       {ready && people.length === 0 ? (
-        <div className="mt-10 rounded-[28px] border border-dashed border-line px-5 py-10">
-          <p className="font-medium">No one is saved yet.</p>
+        <div className="relative mt-10 overflow-hidden rounded-[28px] border border-dashed border-line bg-card px-5 py-10 text-center">
+          <span className="sparkle left-8 top-6 text-lg" aria-hidden>✦</span>
+          <span className="sparkle right-10 top-10 text-sm" style={{ animationDelay: "0.6s" }} aria-hidden>✦</span>
+          <img src={utilityIcons.gift} alt="" className="floaty mx-auto h-24 w-24 object-contain" />
+          <p className="mt-4 font-medium">No one is saved yet.</p>
           <p className="mt-2 text-sm text-muted">A discovery will appear here after you generate it.</p>
         </div>
       ) : null}
@@ -81,7 +85,7 @@ export function DashboardScreen() {
       {others.length ? (
         <section className="mt-10">
           <h2 className="text-sm font-medium text-muted">People</h2>
-          <div className="mt-4 grid gap-4">
+          <div className="mt-4 grid gap-4 lg:grid-cols-2 xl:grid-cols-3">
             {others.map((person) => (
               <PersonCard
                 key={person.id}
@@ -94,6 +98,10 @@ export function DashboardScreen() {
                   setPeople(loadPeople());
                   setPendingDelete(null);
                 }}
+                onFeature={() => {
+                  setFeaturedHomepagePreview(person.id);
+                  setPeople(loadPeople());
+                }}
               />
             ))}
           </div>
@@ -103,7 +111,7 @@ export function DashboardScreen() {
       {mine.length ? (
         <section className="mt-10">
           <h2 className="text-sm font-medium text-muted">Your taste profile</h2>
-          <div className="mt-4 grid gap-4">
+          <div className="mt-4 grid gap-4 lg:grid-cols-2 xl:grid-cols-3">
             {mine.map((person) => (
               <PersonCard
                 key={person.id}
@@ -116,6 +124,10 @@ export function DashboardScreen() {
                   setPeople(loadPeople());
                   setPendingDelete(null);
                 }}
+                onFeature={() => {
+                  setFeaturedHomepagePreview(person.id);
+                  setPeople(loadPeople());
+                }}
               />
             ))}
           </div>
@@ -126,7 +138,7 @@ export function DashboardScreen() {
         <h2 className="font-display text-2xl">Account</h2>
         {!firebaseEnabled() ? (
           <p className="mt-2 text-sm leading-6 text-muted">
-            Cloud sign-in isn't configured in this environment. Judges can use the full discovery flow without an account.
+            This demo keeps profiles on this device. You can still run a full discovery without signing in.
           </p>
         ) : user ? (
           <div className="mt-3 flex flex-wrap items-center justify-between gap-3">
@@ -170,12 +182,14 @@ function PersonCard({
   onAskDelete,
   onCancel,
   onDelete,
+  onFeature,
 }: {
   person: StoredPerson;
   pendingDelete: boolean;
   onAskDelete: () => void;
   onCancel: () => void;
   onDelete: () => void;
+  onFeature: () => void;
 }) {
   const latest = person.sessions[0];
   const relationship = RELATIONSHIP_LABELS[person.draft.forSelf ? "myself" : person.draft.relationship] || "Profile";
@@ -188,11 +202,14 @@ function PersonCard({
   const tones = ["tone-music", "tone-dining", "tone-books", "tone-fashion", "tone-experiences"];
   const tone = tones[person.draft.name.length % tones.length];
   return (
-    <article className="rounded-[28px] border border-line bg-card p-5 shadow-[0_16px_40px_rgba(79,70,229,0.05)]">
+    <article className="lift rounded-[28px] border border-line bg-card p-5 shadow-[0_16px_40px_rgba(79,70,229,0.06)]">
       <div className="flex items-start justify-between gap-3">
         <div className="flex items-center gap-3">
-          <span className={`flex h-12 w-12 items-center justify-center rounded-2xl font-medium ${tone}`}>
-            {initials || "?"}
+          <span className="relative flex h-14 w-14 items-center justify-center">
+            <img src={utilityIcons.profile} alt="" className="h-14 w-14 object-contain" />
+            <span className={`absolute -bottom-1 -right-1 flex h-6 min-w-6 items-center justify-center rounded-full px-1 text-[10px] font-medium ${tone}`}>
+              {initials || "?"}
+            </span>
           </span>
           <div>
           <h3 className="font-display text-3xl">{person.draft.name}</h3>
@@ -212,6 +229,15 @@ function PersonCard({
         <Link href={`/discover?person=${person.id}&step=edit`} className="inline-flex min-h-11 items-center rounded-full border border-line px-4 text-sm">
           Edit
         </Link>
+        {latest ? (
+          <button
+            type="button"
+            onClick={onFeature}
+            className={`inline-flex min-h-11 items-center rounded-full px-4 text-sm ${person.featuredHomepagePreview ? "bg-accent-soft text-accent-deep" : "border border-line"}`}
+          >
+            {person.featuredHomepagePreview ? "On the homepage" : "Use on homepage"}
+          </button>
+        ) : null}
         <button type="button" onClick={onAskDelete} className="inline-flex min-h-11 items-center px-3 text-sm text-muted">
           Delete
         </button>

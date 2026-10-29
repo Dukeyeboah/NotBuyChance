@@ -7,7 +7,7 @@ import { BrandMark } from "@/components/brand-mark";
 export function SiteHeader() {
   const path = usePathname();
   return (
-    <header className="mx-auto flex w-full max-w-6xl flex-wrap items-center justify-between gap-x-3 gap-y-3 px-5 py-5">
+    <header className="mx-auto flex w-full max-w-[1440px] flex-wrap items-center justify-between gap-x-3 gap-y-3 px-5 py-5 lg:px-10">
       <Link href="/" className="flex min-h-11 items-center gap-2.5">
         <BrandMark />
         <span>

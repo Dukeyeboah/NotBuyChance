@@ -21,6 +21,8 @@ export interface StoredPerson {
   updatedAt: string;
   draft: DiscoveryDraft;
   sessions: StoredSession[];
+  /** One saved discovery can stand in for the homepage example. */
+  featuredHomepagePreview?: boolean;
 }
 
 function read(): StoredPerson[] {
@@ -76,6 +78,7 @@ export function saveDiscovery(draft: DiscoveryDraft, result: DiscoveryResult): S
     updatedAt: now,
     draft,
     sessions: [session, ...(existing?.sessions ?? [])].slice(0, 12),
+    featuredHomepagePreview: existing?.featuredHomepagePreview === true,
   };
   write([next, ...people.filter((person) => person.id !== draft.personId)]);
   void import("@/lib/firebase/client").then((firebase) => firebase.cloudSavePerson(next));
@@ -111,4 +114,23 @@ export function saveFeedback(personId: string, feedback: FeedbackItem, draft: Di
 
 export function replacePeople(people: StoredPerson[]) {
   write(people);
+}
+
+/** Mark one saved discovery as the homepage example. Calling it again clears the mark. */
+export function setFeaturedHomepagePreview(personId: string) {
+  const people = read();
+  const target = people.find((person) => person.id === personId);
+  if (!target?.sessions.length) return;
+  const enable = target.featuredHomepagePreview !== true;
+  const next = people.map((person) => ({
+    ...person,
+    featuredHomepagePreview: enable && person.id === personId,
+  }));
+  write(next);
+  const changed = next.filter(
+    (person, index) => Boolean(person.featuredHomepagePreview) !== Boolean(people[index]?.featuredHomepagePreview),
+  );
+  void import("@/lib/firebase/client").then((firebase) => {
+    for (const person of changed) void firebase.cloudSavePerson(person);
+  });
 }

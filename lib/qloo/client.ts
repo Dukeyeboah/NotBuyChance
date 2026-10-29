@@ -25,7 +25,7 @@ const cache = new Map<string, CacheEntry>();
 const CACHE_MS = 15 * 60 * 1000;
 
 function baseUrl(): string {
-  return (process.env.QLOO_API_BASE || "https://hackathon.api.qloo.com").replace(
+  return (process.env.QLOO_API_BASE || "https://api.qloo.com").replace(
     /\/$/,
     "",
   );
@@ -108,6 +108,10 @@ async function qlooGet(
   });
 
   if (response.status === 404) return { results: [] };
+  if (response.status === 401) {
+    console.error("[qloo] rejected the API key", path);
+    throw new Error("Qloo rejected the API key for this host.");
+  }
   if (!response.ok) {
     console.error("[qloo] request failed", response.status, path);
     throw new Error(`Qloo request failed (${response.status}).`);

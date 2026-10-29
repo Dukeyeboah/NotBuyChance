@@ -15,6 +15,36 @@
 
 import type { CosmicProfile } from "@/types/discovery";
 
+const SIGN_COLOR: Record<string, string> = {
+  Aries: "An Aries sun likes a spark. Firsts, a little daring, and something they can start themselves.",
+  Taurus: "A Taurus sun loves the senses. Good food, texture, craft, and comfort they can actually feel.",
+  Gemini: "A Gemini sun is curious and chatty. Variety, a clever detour, and something worth talking about.",
+  Cancer: "A Cancer sun leans toward care and home. Nostalgia, a cozy table, and gifts that feel looked-after.",
+  Leo: "A Leo sun enjoys warmth and a little spotlight. Celebration, color, and a reason to dress the moment up.",
+  Virgo: "A Virgo sun notices the useful detail. Skill, thoughtfulness, and something beautifully well made.",
+  Libra: "A Libra sun loves harmony and beauty. A shared plan, a pretty setting, and company they enjoy.",
+  Scorpio: "A Scorpio sun wants depth. Intimacy, meaning, and an experience with a little mystery.",
+  Sagittarius: "A Sagittarius sun wants the horizon. Ideas, adventure, and a story they can tell afterward.",
+  Capricorn: "A Capricorn sun respects craft and things that last. Quality, ambition, and a plan that holds up.",
+  Aquarius: "An Aquarius sun likes the original angle. Community, ideas, and something a bit unexpected.",
+  Pisces: "A Pisces sun lives in imagination. Music, empathy, and a mood they can sink into.",
+};
+
+const NUMBER_COLOR: Record<number, string> = {
+  1: "A 1 likes to lead. Independence, a first, and something they can put their own stamp on.",
+  2: "A 2 is the partnership number. Shared tables, duets, and gifts that say we tend to land well.",
+  3: "A 3 is the creative one. Expression, color, conversation, humor, and making something people can feel. Threes light up around play.",
+  4: "A 4 loves craft and things that last. A well-made object, a skill, or a plan they can trust.",
+  5: "A 5 wants freedom and variety. A change of scene, a new flavor, a ticket somewhere they have not been.",
+  6: "A 6 leans into care and beauty. Home, warmth, and something lovely to gather people around.",
+  7: "A 7 likes depth and quiet curiosity. A story with a secret, a place worth looking at twice.",
+  8: "An 8 notices quality and ambition. Lasting materials, a polished night, something that feels earned.",
+  9: "A 9 is the wide-heart number. Compassion, perspective, and experiences that connect to a bigger story.",
+  11: "An 11 is the insight number. Inspiration, a spark, and something that feels a little fated in a playful way.",
+  22: "A 22 likes building. A big idea they can touch, a workshop, a trip with a purpose.",
+  33: "A 33 mixes care and creativity. Hosting, teaching, and making something generous for other people.",
+};
+
 const SUN_THEMES: Record<string, string[]> = {
   Aries: ["initiative", "bold experiences", "new beginnings"],
   Taurus: ["comfort", "the senses", "craft"],
@@ -159,13 +189,16 @@ export function buildCosmicProfile(
     ...(lifePath ? LIFE_PATH_THEMES[lifePath] ?? [] : []),
   ].filter((theme, index, all) => all.indexOf(theme) === index);
 
-  const pieces: string[] = [];
-  if (sign) pieces.push(`a ${sign} sun`);
-  if (lifePath) pieces.push(`life path ${lifePath}`);
-  if (expression) pieces.push(`a name number of ${expression}`);
-  const themeText = themes.slice(0, 3).join(", ");
+  const first = safeName.split(/\s+/)[0] || "They";
+  const color = [
+    sign ? SIGN_COLOR[sign] : "",
+    lifePath ? NUMBER_COLOR[lifePath] : "",
+    expression && expression !== lifePath ? `The name number is ${expression}. ${NUMBER_COLOR[expression] ?? ""}` : "",
+  ]
+    .filter(Boolean)
+    .join(" ");
   const limited = !parsed;
-  const reading = `This is a symbolic reading for entertainment, not a personality assessment. From ${pieces.join(", ")}, the themes we can play with are ${themeText || "curiosity and care"}. They are creative prompts for gifts and experiences, not facts about ${safeName}.${limited ? " Without a birth date, this uses only the name that was shared." : " It is a sun-sign and life-path sketch, not a full birth chart."}`;
+  const reading = `This is a symbolic reading for entertainment, not a personality assessment. ${color || `${first} gets curiosity and care as the playful themes.`} Use that color when a gift needs a little personality. It is a prompt, not a fact about ${first}.${limited ? " Without a birth date, this uses only the name that was shared." : " It is a sun-sign and life-path sketch, not a full birth chart."}`;
 
   return {
     sunSign: sign,

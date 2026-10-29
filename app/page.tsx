@@ -1,17 +1,13 @@
 import Link from "next/link";
-
-const examples = [
-  "Intimate jazz concert",
-  "Contemporary art exhibition",
-  "Design-inspired coffee-table book",
-  "Weekend cultural getaway",
-];
+import { HomePreview } from "@/components/home-preview";
 
 export default function HomePage() {
   return (
     <div>
-      <section className="mx-auto grid w-full max-w-6xl items-center gap-14 px-5 pb-20 pt-6 lg:grid-cols-[1.1fr_0.9fr] lg:pt-10">
-        <div>
+      <section className="mx-auto grid w-full max-w-[1440px] items-center gap-14 px-5 pb-20 pt-6 lg:grid-cols-[1.1fr_0.9fr] lg:px-10 lg:pt-10">
+        <div className="relative">
+          <span className="sparkle -left-3 top-10 text-lg" aria-hidden>✦</span>
+          <span className="sparkle left-40 -top-3 text-sm" style={{ animationDelay: "0.8s" }} aria-hidden>✦</span>
           <p className="text-sm font-medium tracking-wide text-accent-deep">Personal taste discovery</p>
           <h1 className="mt-4 max-w-xl font-display text-5xl leading-[1.05] sm:text-6xl">
             The perfect gift isn't by chance.
@@ -34,41 +30,14 @@ export default function HomePage() {
             </a>
           </div>
           <Link href="/discover?sample=1" className="mt-4 inline-flex min-h-11 items-center text-sm text-accent-deep">
-            Try a Sample Discovery
+            Try the demo
           </Link>
         </div>
 
-        <aside className="relative mx-auto w-full max-w-md" aria-label="Illustrative example, not a live recommendation">
-          <img
-            src="/logo.png"
-            alt=""
-            className="mx-auto mb-6 h-40 w-auto sm:h-48"
-          />
-          <p className="absolute -top-3 left-6 z-10 rounded-full border border-line bg-ivory px-3 py-1 text-xs text-muted">
-            Illustrative example
-          </p>
-          <div className="rounded-[32px] border border-line bg-card p-6 shadow-[0_24px_60px_rgba(32,32,32,0.06)] sm:p-8">
-            <p className="text-sm text-muted">Discovering for</p>
-            <h2 className="mt-1 font-display text-5xl">Maya</h2>
-            <p className="mt-6 text-sm text-muted">Interests</p>
-            <p className="mt-1">Jazz · Art · Travel</p>
-            <p className="mt-6 text-sm text-muted">Potential discoveries</p>
-            <ul className="mt-3 space-y-3">
-              {examples.map((example, index) => (
-                <li
-                  key={example}
-                  className={`rounded-2xl px-4 py-3 text-sm ${["tone-music", "tone-experiences", "tone-books", "tone-dining"][index]}`}
-                >
-                  {example}
-                </li>
-              ))}
-            </ul>
-          </div>
-          <p className="mt-3 text-center text-xs text-muted">A preview of the feeling. Not a live recommendation.</p>
-        </aside>
+        <HomePreview />
       </section>
 
-      <section id="how" className="mx-auto w-full max-w-6xl px-5 pb-20">
+      <section id="how" className="mx-auto w-full max-w-[1440px] px-5 pb-20 lg:px-10">
         <div className="grid gap-4 md:grid-cols-3">
           {[
             ["1", "Tell us about them", "Share a few details about the person you have in mind."],
@@ -89,7 +58,7 @@ export default function HomePage() {
         </p>
       </section>
 
-      <footer className="mx-auto w-full max-w-6xl px-5 pb-10 text-sm text-muted">
+      <footer className="mx-auto w-full max-w-[1440px] px-5 pb-10 text-sm text-muted lg:px-10">
         NotBuyChance · The perfect gift isn't by chance.
       </footer>
     </div>

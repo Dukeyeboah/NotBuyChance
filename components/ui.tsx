@@ -61,6 +61,7 @@ export function Choice({
   detail,
   mark,
   tone,
+  showCheck = false,
   onClick,
 }: {
   selected: boolean;
@@ -68,6 +69,7 @@ export function Choice({
   detail?: string;
   mark?: ReactNode;
   tone?: string;
+  showCheck?: boolean;
   onClick: () => void;
 }) {
   return (
@@ -75,15 +77,20 @@ export function Choice({
       type="button"
       aria-pressed={selected}
       onClick={onClick}
-      className={`min-h-12 rounded-2xl border px-4 py-3 text-left transition ${tone || "bg-card"} ${
-        selected ? "border-accent shadow-[0_0_0_2px_var(--accent)]" : "border-line hover:border-accent/50"
+      className={`relative min-h-12 rounded-2xl border px-4 py-3 text-left transition duration-200 hover:-translate-y-0.5 ${showCheck ? "pr-8" : ""} ${tone || "bg-card"} ${
+        selected ? "choice-selected border-accent shadow-[0_0_0_2px_var(--accent)]" : "border-line hover:border-accent/40"
       }`}
     >
-      <span className="flex items-start gap-3">
-        {mark ? <span className="mt-0.5 text-accent">{mark}</span> : null}
+      {showCheck && selected ? (
+        <span className="absolute right-2.5 top-2.5 flex h-5 w-5 items-center justify-center rounded-full bg-accent text-[11px] text-white" aria-hidden>
+          ✓
+        </span>
+      ) : null}
+      <span className="flex items-center gap-3">
+        {mark ? <span className="shrink-0">{mark}</span> : null}
         <span className="min-w-0">
-      <span className="block font-medium">{title}</span>
-      {detail ? <span className="mt-1 block text-sm text-muted">{detail}</span> : null}
+          <span className="block font-medium">{title}</span>
+          {detail ? <span className="mt-1 block text-sm text-muted">{detail}</span> : null}
         </span>
       </span>
     </button>

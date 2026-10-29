@@ -17,8 +17,12 @@ import {
   categoryLabel,
 } from "@/lib/qloo/categories";
 import { applyNotForThem } from "@/lib/discovery-rules";
-import { budgetLabel } from "@/lib/format";
+import { budgetLabel, currencyName, formatMoney } from "@/lib/format";
+import { firstName } from "@/lib/text";
+import { LoadingStory } from "@/components/loading-story";
 import { saveDiscovery, saveFeedback, updateDraft } from "@/lib/storage";
+import { CategoryIcon } from "@/components/category-icon";
+import { utilityIcons } from "@/lib/icons";
 import { Button, Choice, Field, TextArea, TextInput } from "@/components/ui";
 import { ResultsView } from "@/components/results-view";
 
@@ -32,74 +36,8 @@ const STEP_NOTES = [
   "Let's see what we can discover.",
 ];
 
-function CategoryMark({ id }: { id: string }) {
-  const props = {
-    width: 22,
-    height: 22,
-    viewBox: "0 0 24 24",
-    fill: "none",
-    stroke: "currentColor",
-    strokeWidth: 1.6,
-    "aria-hidden": true,
-  } as const;
-  if (id === "dining") {
-    return (
-      <svg {...props}>
-        <path d="M7 3v7a2 2 0 0 0 2 2H9M9 3v18M17 3v6a3 3 0 0 1-3 3v9" />
-      </svg>
-    );
-  }
-  if (id === "fashion") {
-    return (
-      <svg {...props}>
-        <path d="M8 4l4 3 4-3 3 4-3 2v11H8V10L5 8z" />
-      </svg>
-    );
-  }
-  if (id === "music") {
-    return (
-      <svg {...props}>
-        <path d="M9 18a3 3 0 1 1-2-2.83V6l10-2v9" />
-        <circle cx="17" cy="15" r="3" />
-      </svg>
-    );
-  }
-  if (id === "books") {
-    return (
-      <svg {...props}>
-        <path d="M5 5h6a3 3 0 0 1 3 3v11H8a3 3 0 0 0-3 3zM19 5h-6a3 3 0 0 0-3 3" />
-      </svg>
-    );
-  }
-  if (id === "screen") {
-    return (
-      <svg {...props}>
-        <rect x="3" y="5" width="18" height="12" rx="2" />
-        <path d="M8 21h8" />
-      </svg>
-    );
-  }
-  if (id === "tech") {
-    return (
-      <svg {...props}>
-        <rect x="7" y="3" width="10" height="18" rx="2" />
-        <path d="M11 18h2" />
-      </svg>
-    );
-  }
-  if (id === "experiences") {
-    return (
-      <svg {...props}>
-        <circle cx="12" cy="12" r="8" />
-        <path d="M12 8v4l3 2" />
-      </svg>
-    );
-  }
-  return (
-    <svg {...props}>
-      <path d="M12 3l1.6 5.2L19 10l-5.4 1.8L12 17l-1.6-5.2L5 10l5.4-1.8z" />
-    </svg>
-  );
+function CategoryMark({ id, selected }: { id: string; selected: boolean }) {
+  return <CategoryIcon id={id} size={68} selected={selected} />;
 }
 
 const AGE_RANGES = ["Under 18", "18–24", "25–34", "35–44", "45–54", "55–64", "65+"];
@@ -348,45 +286,29 @@ export function DiscoverFlow() {
     }
   }
 
-  const name = draft.name.trim() || "them";
+  const name = firstName(draft.name);
 
   if (loading) {
-    return (
-      <div className="mx-auto flex min-h-[70vh] w-full max-w-xl flex-col justify-center px-5" aria-live="polite">
-        <p className="text-sm text-muted">Discovery</p>
-        <h1 className="mt-2 font-display text-4xl leading-tight">Connecting the dots for {name}...</h1>
-        <ul className="mt-8 space-y-3">
-          {phases.map((phase) => (
-            <li key={phase.id} className="flex items-center gap-3 text-sm">
-              <span className="pulse-dot h-2.5 w-2.5 rounded-full bg-accent" />
-              {phase.message}
-            </li>
-          ))}
-        </ul>
-        {slow ? (
-          <p className="mt-6 text-sm text-muted">Still working. Taste search can take a moment.</p>
-        ) : null}
-      </div>
-    );
+    return <LoadingStory name={name} phases={phases} slow={slow} />;
   }
 
   if (result) {
     return (
       <div>
         {notice ? (
-          <p role="status" className="mx-auto mb-4 w-full max-w-3xl px-5 text-sm text-muted">
+          <p role="status" className="mx-auto mb-4 w-full max-w-[1440px] px-5 text-sm text-muted lg:px-10">
             {notice}
           </p>
         ) : null}
         {error ? (
-          <div className="mx-auto mb-4 w-full max-w-3xl px-5">
+          <div className="mx-auto mb-4 w-full max-w-[1440px] px-5 lg:px-10">
             <p className="rounded-2xl bg-accent-soft px-4 py-3 text-sm">{error}</p>
             <Button className="mt-3" variant="secondary" onClick={() => discover(draft)}>
               Try again
             </Button>
           </div>
         ) : null}
-        <div className="mx-auto mb-4 flex w-full max-w-3xl justify-end px-5">
+        <div className="mx-auto mb-4 flex w-full max-w-[1440px] justify-end px-5 lg:px-10">
           <Button variant="ghost" onClick={() => setResult(null)}>
             Edit details
           </Button>
@@ -448,7 +370,7 @@ export function DiscoverFlow() {
   }
 
   return (
-    <div className="mx-auto w-full max-w-xl px-5 pb-16">
+    <div className="mx-auto w-full max-w-[1440px] px-5 pb-16 lg:px-10">
       <ol className="flex gap-1.5" aria-label="Progress">
         {STEPS.map((label, index) => (
           <li
@@ -464,7 +386,7 @@ export function DiscoverFlow() {
 
       {sample && step === 5 ? (
         <p className="mt-4 rounded-2xl bg-accent-soft px-4 py-3 text-sm leading-6">
-          Maya is a fictional sample. The button below runs the real discovery engine, including Qloo. You can go back and change anything first.
+          Maya is a demo profile. The button below runs a real discovery. You can go back and change anything first.
         </p>
       ) : null}
 
@@ -509,6 +431,7 @@ function WhoStep({
   return (
     <div className="space-y-6">
       <div>
+        <img src={utilityIcons.profile} alt="" className="mb-3 h-16 w-16 object-contain" />
         <h1 className="font-display text-4xl leading-tight">Let's get to know them.</h1>
         <p className="mt-3 text-muted">A little information helps us make more thoughtful suggestions.</p>
       </div>
@@ -522,7 +445,7 @@ function WhoStep({
       {draft.forSelf ? null : (
         <fieldset>
           <legend className="text-sm font-medium">Who are they to you?</legend>
-          <div className="mt-3 grid grid-cols-2 gap-3">
+          <div className="mt-3 grid grid-cols-2 gap-3 lg:grid-cols-4">
             {Object.entries(RELATIONSHIP_LABELS)
               .filter(([id]) => id !== "myself")
               .map(([id, label]) => (
@@ -664,7 +587,7 @@ function StyleStep({
         <h1 className="font-display text-4xl">How would you like to discover?</h1>
         <p className="mt-3 text-muted">Taste is the default. Cosmic themes are symbolic entertainment, not a personality test.</p>
       </div>
-      <div className="grid gap-3">
+      <div className="grid gap-3 lg:grid-cols-3">
         {(
           [
             ["taste", "Taste", "Stated interests, Qloo affinities, and your feedback."],
@@ -672,7 +595,27 @@ function StyleStep({
             ["fusion", "Fusion", "Taste first, with a light cosmic accent if you allow it."],
           ] as const
         ).map(([id, title, detail]) => (
-          <Choice key={id} selected={draft.mode === id} title={title} detail={detail} onClick={() => update({ mode: id })} />
+          <Choice
+            key={id}
+            selected={draft.mode === id}
+            title={title}
+            detail={detail}
+            showCheck
+            mark={
+              <CategoryIcon
+                id={id}
+                size={72}
+                motion={
+                  draft.mode === id && id === "cosmic"
+                    ? "float"
+                    : draft.mode === id && id === "fusion"
+                      ? "orbit"
+                      : "none"
+                }
+              />
+            }
+            onClick={() => update({ mode: id })}
+          />
         ))}
       </div>
       {draft.mode === "taste" ? null : cosmicReading ? (
@@ -829,20 +772,23 @@ function DetailStep({
         <h1 className="font-display text-4xl">What kind of surprise are you thinking about?</h1>
         <p className="mt-3 text-muted">Choose as many as you like. Surprise Me looks across categories for a real connection.</p>
       </div>
-      <div className="grid gap-2 sm:grid-cols-2">
+      <div className="grid gap-2 sm:grid-cols-2 xl:grid-cols-4">
         {CATEGORIES.map((category) => (
           <Choice
             key={category.id}
             selected={draft.categories.includes(category.id)}
             title={category.label}
-            mark={<CategoryMark id={category.id} />}
+            showCheck
+            mark={<CategoryMark id={category.id} selected={draft.categories.includes(category.id)} />}
             tone={`tone-${category.id}`}
             detail={
               category.id === "tech"
                 ? "Brand affinities, not a gadget catalog."
                 : category.id === "fashion"
                   ? "Fashion and lifestyle brands."
-                  : category.id === "surprise"
+                  : category.id === "dining"
+                  ? "Restaurants and places to eat."
+                : category.id === "surprise"
                     ? "Cross-category ideas tied to their tastes."
                     : undefined
             }
@@ -852,23 +798,28 @@ function DetailStep({
       </div>
       <fieldset>
         <legend className="font-display text-3xl">What budget are you thinking?</legend>
-        <div className="mt-4 grid gap-2">
+        <p className="mt-3 text-sm text-muted">
+          {draft.country
+            ? `Money is in ${currencyName(draft.currency)}, matching ${draft.country}.`
+            : `Money is in ${currencyName(draft.currency)} until a country is set.`}
+        </p>
+        <div className="mt-4 grid gap-2 lg:grid-cols-2">
           {(
             [
-              ["friendly", "Budget-friendly", "Up to 50 in your currency."],
-              ["moderate", "Moderate", "About 50–150."],
-              ["premium", "Premium", "About 150–500."],
-              ["none", "No specific budget", "We'll still avoid anything that conflicts with a dislike."],
-              ["custom", "Set my own budget", "Use a minimum, a maximum, or both."],
+              ["friendly", "Budget-friendly", `Up to ${formatMoney(50, draft.currency)} ${currencyName(draft.currency)}.`],
+              ["moderate", "Moderate", `${formatMoney(50, draft.currency)}–${formatMoney(150, draft.currency)} ${currencyName(draft.currency)}.`],
+              ["premium", "Premium", `${formatMoney(150, draft.currency)}–${formatMoney(500, draft.currency)} ${currencyName(draft.currency)}.`],
+              ["none", "No specific budget", `We'll still talk about money in ${currencyName(draft.currency)}, and skip anything that conflicts with a dislike.`],
+              ["custom", "Set my own budget", `A minimum, a maximum, or both, in ${currencyName(draft.currency)}.`],
             ] as const
           ).map(([id, title, detail]) => (
             <Choice key={id} selected={draft.budgetTier === id} title={title} detail={detail} onClick={() => update({ budgetTier: id })} />
           ))}
         </div>
-        <p className="mt-3 text-xs text-muted">Those bands are rough guides in the selected currency. They are not a cost-of-living conversion, and we won't invent a price.</p>
+        <p className="mt-3 text-xs text-muted">Those bands are rough guides in {currencyName(draft.currency)}. They are not a cost-of-living conversion, and we won't invent a price.</p>
         {draft.budgetTier === "custom" ? (
           <div className="mt-4 grid gap-3 sm:grid-cols-3">
-            <Field label="Currency">
+            <Field label={`Currency · ${currencyName(draft.currency)}`}>
               <TextInput value={draft.currency} onChange={(event) => update({ currency: event.target.value.toUpperCase(), currencyTouched: true })} />
             </Field>
             <Field label="Minimum">
@@ -882,7 +833,7 @@ function DetailStep({
       </fieldset>
       <fieldset>
         <legend className="font-display text-3xl">How important is location?</legend>
-        <div className="mt-4 grid gap-2">
+        <div className="mt-4 grid gap-2 lg:grid-cols-3">
           {(
             [
               ["local", "Local only", "Prioritize the selected city."],
@@ -899,9 +850,10 @@ function DetailStep({
 }
 
 function ReviewStep({ draft }: { draft: DiscoveryDraft }) {
-  const name = draft.name.trim() || "them";
+  const fullName = draft.name.trim() || "them";
+  const name = firstName(draft.name);
   return (
-    <div className="space-y-5">
+    <div className="space-y-5 lg:grid lg:grid-cols-[1.1fr_0.9fr] lg:items-start lg:gap-8 lg:space-y-0">
       <div>
         <h1 className="font-display text-4xl">Ready when you are.</h1>
         <p className="mt-3 text-muted">We'll use this to look for something {name} might love.</p>
@@ -909,7 +861,7 @@ function ReviewStep({ draft }: { draft: DiscoveryDraft }) {
       <dl className="space-y-3 rounded-[28px] border border-line bg-card p-5 text-sm leading-6">
         <div>
           <dt className="text-muted">Person</dt>
-          <dd>{name} · {RELATIONSHIP_LABELS[draft.forSelf ? "myself" : draft.relationship] || "Relationship not set"}</dd>
+          <dd>{fullName} · {RELATIONSHIP_LABELS[draft.forSelf ? "myself" : draft.relationship] || "Relationship not set"}</dd>
         </div>
         <div>
           <dt className="text-muted">Place</dt>
@@ -946,8 +898,8 @@ function ReviewStep({ draft }: { draft: DiscoveryDraft }) {
           </dd>
         </div>
       </dl>
-        <p className="text-xs leading-5 text-muted">
-          Friendly, moderate, and premium are rough bands in the selected currency. A price is shown only when a source states it.
+        <p className="text-xs leading-5 text-muted lg:col-span-2">
+          Friendly, moderate, and premium are rough bands in {currencyName(draft.currency)}. A price is shown only when a source states it.
         </p>
     </div>
   );

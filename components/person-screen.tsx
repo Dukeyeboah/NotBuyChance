@@ -5,7 +5,9 @@ import { useEffect, useState } from "react";
 import { useParams } from "next/navigation";
 import type { DiscoveryResult, FeedbackReason, Reaction, Recommendation } from "@/types/discovery";
 import { formatDay } from "@/lib/format";
-import { getPerson, saveFeedback, type StoredPerson } from "@/lib/storage";
+import { getPerson, saveFeedback, setFeaturedHomepagePreview, type StoredPerson } from "@/lib/storage";
+import { DiscoveryPreviewCard } from "@/components/discovery-preview-card";
+import { previewFromPerson } from "@/lib/preview";
 import { ResultsView } from "@/components/results-view";
 import { Button } from "@/components/ui";
 
@@ -33,6 +35,7 @@ export function PersonScreen() {
   }
 
   const latest = person.sessions[0];
+  const preview = previewFromPerson(person);
   const result: DiscoveryResult | null = latest
     ? {
         recommendations: latest.recommendations,
@@ -75,7 +78,7 @@ export function PersonScreen() {
 
   return (
     <div className="pb-12">
-      <div className="mx-auto flex w-full max-w-3xl items-center justify-between px-5">
+      <div className="mx-auto flex w-full max-w-[1440px] items-center justify-between px-5 lg:px-10">
         <div>
           <p className="text-sm text-muted">Saved {formatDay(person.updatedAt)}</p>
           <h1 className="font-display text-4xl">{person.draft.name}</h1>
@@ -84,6 +87,22 @@ export function PersonScreen() {
           <Button>New discovery</Button>
         </Link>
       </div>
+      {preview ? (
+        <div className="mx-auto mt-8 w-full max-w-xl px-5">
+          <DiscoveryPreviewCard preview={preview} />
+          <div className="mt-3 flex justify-center">
+            <Button
+              variant="secondary"
+              onClick={() => {
+                setFeaturedHomepagePreview(person.id);
+                setPerson(getPerson(person.id) ?? person);
+              }}
+            >
+              {person.featuredHomepagePreview ? "Showing on the homepage" : "Use as the homepage example"}
+            </Button>
+          </div>
+        </div>
+      ) : null}
       {result ? (
         <div className="mt-8">
           <ResultsView

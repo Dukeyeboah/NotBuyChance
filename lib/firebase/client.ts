@@ -109,6 +109,7 @@ export async function cloudSavePerson(person: StoredPerson) {
     createdAt: person.createdAt,
     updatedAt: person.updatedAt,
     draft: plain(person.draft),
+    featuredHomepagePreview: person.featuredHomepagePreview === true,
   });
   const latest = person.sessions[0];
   if (latest) {
@@ -160,6 +161,7 @@ export async function cloudLoadPeople(): Promise<StoredPerson[]> {
         createdAt: data.createdAt,
         updatedAt: data.updatedAt,
         draft: data.draft,
+        featuredHomepagePreview: data.featuredHomepagePreview === true,
         sessions: sessions.docs
           .map((session) => session.data() as StoredPerson["sessions"][number])
           .sort((a, b) => b.createdAt.localeCompare(a.createdAt)),

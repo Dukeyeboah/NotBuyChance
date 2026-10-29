@@ -197,8 +197,10 @@ export function prepareRecommendations(options: {
       if (normalize(title) !== normalize(cited.name)) {
         title = cited.name;
         const evidence = evidenceById.get(cited.entityId);
-        if (evidence?.description) description = evidence.description;
-        rationale = `Qloo connected ${cited.signal} with ${cited.name}. That is a cultural affinity, not a confirmed preference.`;
+        if (description.length < 80 && evidence?.description) description = evidence.description;
+        if (rationale.length < 80) {
+          rationale = `Qloo connected ${cited.signal} with ${cited.name}. That is a cultural affinity, not a confirmed preference.`;
+        }
       }
     }
     if (seen.has(normalize(title))) continue;

@@ -80,6 +80,12 @@ export function displayName(name: string): string {
   return trimmed || "them";
 }
 
+export function firstName(name: string): string {
+  const trimmed = name.trim();
+  if (!trimmed) return "them";
+  return trimmed.split(/\s+/)[0] || "them";
+}
+
 export function possessive(name: string): string {
   const trimmed = name.trim() || "their";
   return /s$/i.test(trimmed) ? `${trimmed}'` : `${trimmed}'s`;
