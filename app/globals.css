@@ -1,0 +1,166 @@
+@import "tailwindcss";
+
+:root {
+  --indigo: #4f46e5;
+  --violet: #a855f7;
+  --coral: #f43f5e;
+  --sunset: #f97316;
+  --lavender: #ede9fe;
+  --blush: #fce7f3;
+  --cream: #fff7ed;
+  --sage: #d1fae5;
+  --rose: #ffe4e6;
+  --sky: #e0f2fe;
+  --ink: #1f2937;
+  --muted: #6b7280;
+  --ivory: #faf9f6;
+  --card: #ffffff;
+  --line: #e5e7eb;
+  --accent: #4f46e5;
+  --accent-deep: #4338ca;
+  --accent-soft: #ede9fe;
+  --chip: #1f2937;
+  --chip-text: #ffffff;
+  --gradient-primary: linear-gradient(135deg, #4f46e5, #9333ea);
+  --gradient-warm: linear-gradient(135deg, #f43f5e, #f97316);
+  --gradient-fusion: linear-gradient(135deg, #4f46e5, #a855f7, #f43f5e);
+  color-scheme: light;
+}
+
+html[data-theme="cosmic"] {
+  --accent: #7c3aed;
+  --accent-deep: #6d28d9;
+  --accent-soft: #ede9fe;
+  --ivory: #f7f5ff;
+}
+
+html[data-theme="fusion"] {
+  --accent: #7c3aed;
+  --accent-deep: #c026d3;
+  --accent-soft: #fce7f3;
+}
+
+@theme inline {
+  --color-ivory: var(--ivory);
+  --color-ink: var(--ink);
+  --color-muted: var(--muted);
+  --color-accent: var(--accent);
+  --color-accent-deep: var(--accent-deep);
+  --color-accent-soft: var(--accent-soft);
+  --color-line: var(--line);
+  --color-card: var(--card);
+  --color-coral: var(--coral);
+  --color-sunset: var(--sunset);
+  --font-sans: var(--font-geist), ui-sans-serif, system-ui, sans-serif;
+}
+
+body {
+  background:
+    radial-gradient(880px 380px at 92% -12%, rgba(168, 85, 247, 0.16), transparent 62%),
+    var(--ivory);
+  color: var(--ink);
+  font-family: var(--font-geist), ui-sans-serif, system-ui, sans-serif;
+}
+
+html[data-theme="cosmic"] body {
+  background:
+    radial-gradient(circle at 18% 12%, rgba(168, 85, 247, 0.55) 0 1px, transparent 1.6px),
+    radial-gradient(circle at 78% 8%, rgba(79, 70, 229, 0.5) 0 1px, transparent 1.6px),
+    radial-gradient(circle at 64% 28%, rgba(168, 85, 247, 0.4) 0 1px, transparent 1.6px),
+    radial-gradient(720px 320px at 100% -8%, rgba(124, 58, 237, 0.18), transparent 60%),
+    var(--ivory);
+}
+
+html[data-theme="fusion"] body {
+  background:
+    radial-gradient(640px 280px at 100% -8%, rgba(244, 63, 94, 0.14), transparent 62%),
+    radial-gradient(560px 260px at -8% 0%, rgba(79, 70, 229, 0.14), transparent 58%),
+    var(--ivory);
+}
+
+::selection {
+  background: #ddd6fe;
+  color: #1f2937;
+}
+
+:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 3px;
+}
+
+.font-display {
+  font-family: var(--font-fraunces), Georgia, serif;
+  font-optical-sizing: auto;
+}
+
+.btn-primary {
+  background-image: var(--gradient-primary);
+  color: #fff;
+}
+
+.btn-primary:hover {
+  filter: brightness(1.06);
+}
+
+.btn-primary:active {
+  filter: brightness(0.96);
+}
+
+.chip-on {
+  background: var(--chip);
+  color: var(--chip-text);
+}
+
+.progress-on {
+  background-image: var(--gradient-primary);
+}
+
+.tone-dining { background: var(--rose); }
+.tone-fashion { background: var(--blush); }
+.tone-music { background: var(--lavender); }
+.tone-books { background: var(--sage); }
+.tone-screen { background: #ffe4e6; }
+.tone-tech { background: var(--sky); }
+.tone-experiences { background: var(--cream); }
+.tone-surprise { background-image: linear-gradient(135deg, #ede9fe, #fce7f3); }
+
+.unexpected-wrap {
+  border-radius: 30px;
+  background-image: var(--gradient-fusion);
+  padding: 1.5px;
+}
+
+.unexpected-wrap > article {
+  border: 0;
+  box-shadow: none;
+}
+
+@keyframes rise {
+  from {
+    opacity: 0;
+    transform: translateY(8px);
+  }
+  to {
+    opacity: 1;
+    transform: none;
+  }
+}
+
+.rise {
+  animation: rise 0.45s ease both;
+}
+
+@keyframes pulse-dot {
+  50% { opacity: 0.35; }
+}
+
+.pulse-dot {
+  animation: pulse-dot 1.2s ease-in-out infinite;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .rise,
+  .pulse-dot {
+    animation: none;
+  }
+}
