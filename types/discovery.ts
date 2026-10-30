@@ -53,12 +53,23 @@ export type RecommendationType =
 export interface CosmicProfile {
   sunSign?: string;
   lifePath?: number;
+  /** Calendar day, reduced with the same master-number rules as the life path. */
+  birthdayNumber?: number;
   expression?: number;
   themes: string[];
   reading: string;
   limited: boolean;
   method: string;
 }
+
+export interface VisualAppearance {
+  skinTone: string;
+  hair: string;
+  style: string;
+  additionalDetails: string;
+}
+
+export type ImagePreference = "" | "describe-appearance" | "subject-only" | "no-recipient";
 
 export interface FeedbackItem {
   id: string;
@@ -75,13 +86,19 @@ export interface DiscoveryDraft {
   forSelf: boolean;
   name: string;
   birthDate: string;
+  birthTime: string;
+  birthPlace: string;
   age: string;
   ageRange: string;
   gender: Gender | "";
   genderCustom: string;
   genderOpenness: GenderOpenness;
+  ethnicity: string[];
+  ethnicityOther: string;
   culturalLabels: string[];
   culturalNotes: string;
+  visualAppearance: VisualAppearance;
+  imagePreference: ImagePreference;
   country: string;
   city: string;
   relationship: Relationship | "";

@@ -23,13 +23,56 @@ import { guidanceFor, tasteCompleteness } from "@/lib/discovery-rules";
 import { budgetLabel, formatMoney } from "@/lib/format";
 import { lookupLinks } from "@/lib/links";
 import { firstName } from "@/lib/text";
-import { iconForCategory, utilityIcons } from "@/lib/icons";
+import { aiIllustrationsEnabled } from "@/lib/ai-illustrations";
+import { discoveryIcons, iconForCategory, utilityIcons } from "@/lib/icons";
 import { illustrationFor, requestIllustration } from "@/components/illustrations";
+import { ETHNICITY_OPTIONS, appearanceText, depictsRecipient } from "@/lib/identity";
 import { downloadFindings } from "@/components/download-report";
 import { Button, TextArea } from "@/components/ui";
 
 function prettyType(type: string): string {
   return (type.split(":").pop() || type).replaceAll("_", " ");
+}
+
+type IllustrationScene = {
+  look: string;
+  mode: string;
+  city: string;
+  age: string;
+  imagePreference: string;
+  appearance: DiscoveryDraft["visualAppearance"];
+  ethnicityLabels: string[];
+};
+
+function illustrationScene(draft: DiscoveryDraft): IllustrationScene {
+  const showPerson = depictsRecipient(draft);
+  const ethnicityLabels = showPerson
+    ? draft.ethnicity
+        .filter((id) => id !== "prefer_not")
+        .map((id) =>
+          id === "self_describe"
+            ? draft.ethnicityOther.trim()
+            : ETHNICITY_OPTIONS.find((option) => option[0] === id)?.[1] || "",
+        )
+        .filter(Boolean)
+    : [];
+  const look = [
+    draft.imagePreference,
+    appearanceText(draft.visualAppearance),
+    ethnicityLabels.join(","),
+    draft.mode,
+    draft.city,
+    draft.age || draft.ageRange,
+  ].join("|");
+  return {
+    look,
+    mode: draft.mode,
+    city: draft.city,
+    age: draft.age || draft.ageRange,
+    imagePreference: draft.imagePreference || "subject-only",
+    appearance: showPerson ? draft.visualAppearance : { skinTone: "", hair: "", style: "", additionalDetails: "" },
+    ethnicityLabels,
+  };
 }
 
 function RecommendationCard({
@@ -40,6 +83,7 @@ function RecommendationCard({
   reaction,
   saved,
   featured,
+  scene,
   onReact,
   onSave,
 }: {
@@ -50,12 +94,17 @@ function RecommendationCard({
   reaction?: Reaction;
   saved?: boolean;
   featured?: boolean;
+  scene: IllustrationScene;
   onReact: (reaction: Reaction, reason?: FeedbackReason) => void;
   onSave?: () => void;
 }) {
   const [asking, setAsking] = useState(false);
-  const [drawing, setDrawing] = useState<string | undefined>(illustrationFor(item.id));
-  const image = item.qlooEvidence.find((evidence) => evidence.imageUrl)?.imageUrl;
+  const [drawing, setDrawing] = useState<string | undefined>(
+    aiIllustrationsEnabled ? illustrationFor(item.id) : undefined,
+  );
+  const [photoFailed, setPhotoFailed] = useState(false);
+  const sourceImage = item.qlooEvidence.find((evidence) => evidence.imageUrl)?.imageUrl;
+  const photo = !photoFailed && sourceImage && /^https:\/\//i.test(sourceImage) ? sourceImage : undefined;
   const links = lookupLinks(item, { city, country });
   const price =
     item.price.status === "verified" && item.price.amount != null && item.price.currency
@@ -63,6 +112,7 @@ function RecommendationCard({
       : "Price unavailable";
 
   useEffect(() => {
+    if (!aiIllustrationsEnabled) return;
     let cancelled = false;
     if (drawing) return;
     void requestIllustration({
@@ -70,24 +120,66 @@ function RecommendationCard({
       title: item.title,
       description: item.description,
       category: item.category,
+      look: scene.look,
+      mode: scene.mode,
+      city: scene.city,
+      age: scene.age,
+      imagePreference: scene.imagePreference,
+      appearance: scene.appearance,
+      ethnicityLabels: scene.ethnicityLabels,
     }).then((url) => {
       if (!cancelled && url) setDrawing(url);
     });
     return () => {
       cancelled = true;
     };
-  }, [drawing, item.category, item.description, item.id, item.title]);
+  }, [drawing, item.category, item.description, item.id, item.title, scene]);
 
   return (
     <article className="rise lift flex h-full flex-col rounded-[28px] border border-line bg-card p-4 shadow-[0_16px_40px_rgba(79,70,229,0.06)] sm:p-5">
-      <div className={`relative mb-4 overflow-hidden rounded-[22px] ${drawing || image ? "" : "illustration-wait"}`}>
-        {drawing || image ? (
-          <img src={drawing || image} alt="" className="aspect-[3/2] w-full object-cover" />
+      <div className="relative mb-4 overflow-hidden rounded-[22px]">
+        {photo ? (
+          <img
+            src={photo}
+            alt=""
+            className="aspect-[3/2] w-full object-cover"
+            onError={() => setPhotoFailed(true)}
+          />
+        ) : aiIllustrationsEnabled && drawing ? (
+          <img src={drawing} alt="" className="aspect-[3/2] w-full object-cover" />
         ) : (
-          <div className="flex aspect-[3/2] items-center justify-center">
-            <span className="floaty font-display text-4xl text-accent">✦</span>
+          <div
+            className={`flex aspect-[3/2] items-center justify-center ${
+              [
+                "dining",
+                "fashion",
+                "music",
+                "books",
+                "screen",
+                "tech",
+                "experiences",
+                "surprise",
+              ].includes(item.category)
+                ? `tone-${item.category}`
+                : "tone-surprise"
+            }`}
+          >
+            <img
+              src={discoveryIcons[item.category] || utilityIcons.gift}
+              alt=""
+              className="h-[88px] w-[88px] object-contain"
+            />
           </div>
         )}
+        {photo ? (
+          <p className="absolute bottom-2 left-2 rounded-full bg-white/90 px-2.5 py-1 text-[11px] text-muted">
+            Source image
+          </p>
+        ) : aiIllustrationsEnabled && drawing ? (
+          <p className="absolute bottom-2 left-2 rounded-full bg-white/90 px-2.5 py-1 text-[11px] text-muted">
+            Illustration, not a photograph
+          </p>
+        ) : null}
       </div>
       <div className="flex items-start gap-4">
         <div className="min-w-0 flex-1">
@@ -302,6 +394,7 @@ export function ResultsView({
     const present = result.recommendations.map((item) => item.category);
     return ["all", ...new Set([...selected, ...present])];
   }, [draft.categories, result.recommendations]);
+  const scene = useMemo(() => illustrationScene(draft), [draft]);
   const visible = result.recommendations
     .filter((item) => category === "all" || item.category === category)
     .slice(0, count);
@@ -517,6 +610,7 @@ export function ResultsView({
               name={name}
               city={draft.city}
               country={draft.country}
+              scene={scene}
               reaction={reactions.get(item.title)}
               saved={draft.savedIdeas.includes(item.title)}
               onReact={(reaction, reason) => onReact(item, reaction, reason)}
@@ -541,6 +635,7 @@ export function ResultsView({
             city={draft.city}
             country={draft.country}
             featured
+            scene={scene}
             reaction={reactions.get(result.unexpected.title)}
             saved={draft.savedIdeas.includes(result.unexpected.title)}
             onReact={(reaction, reason) => onReact(result.unexpected as Recommendation, reaction, reason)}

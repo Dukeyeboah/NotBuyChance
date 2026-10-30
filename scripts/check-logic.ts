@@ -1,5 +1,6 @@
 import assert from "node:assert/strict";
 import {
+  birthdayNumber,
   buildCosmicProfile,
   expressionNumber,
   lifePathFromIso,
@@ -28,6 +29,7 @@ import {
 import { currencyForCountry } from "../lib/countries";
 import { currencyName } from "../lib/format";
 import { firstName } from "../lib/text";
+import { illustrationPrompt } from "../lib/identity";
 import { pdfFilename, buildFindingsPdf } from "../components/download-report";
 import type { Recommendation } from "../types/discovery";
 
@@ -46,9 +48,14 @@ assert.equal(expressionNumber("Maya"), 4);
 const cosmic = buildCosmicProfile("Maya", "1997-08-01");
 assert.ok(cosmic);
 assert.equal(cosmic?.sunSign, "Leo");
-assert.match(cosmic?.reading || "", /entertainment/i);
-assert.match(cosmic?.reading || "", /creative|spotlight|quality/i);
+assert.equal(birthdayNumber("1997-08-01"), 1);
+assert.equal(birthdayNumber("2000-01-29"), 11);
+assert.equal(cosmic?.sunSign, "Leo");
+assert.equal(cosmic?.birthdayNumber, 1);
+assert.match(cosmic?.reading || "", /spotlight|quality/i);
+assert.doesNotMatch(cosmic?.reading || "", /entertainment|pseudoscience|just for fun|not real/i);
 assert.doesNotMatch(cosmic?.reading || "", /she loves luxury/i);
+assert.match(buildCosmicProfile("Maya", "1997-08-01", { birthTime: "08:30", birthPlace: "Accra" })?.reading || "", /Rising sign and houses are not calculated/);
 assert.equal(firstName("Judith Nana Afrakuma Bannerman Quist"), "Judith");
 assert.equal(currencyForCountry("Ghana"), "GHS");
 assert.equal(currencyForCountry("China"), "CNY");
@@ -197,6 +204,64 @@ assert.ok(costly.draft.excludeTitles.includes("Arena night"));
 assert.equal(cosmicThemesApply({ mode: "taste", cosmicInfluence: "yes", cosmicFeedback: "accurate" }), false);
 assert.equal(cosmicThemesApply({ mode: "fusion", cosmicInfluence: "yes", cosmicFeedback: "not_really" }), false);
 assert.equal(cosmicThemesApply({ mode: "fusion", cosmicInfluence: "little", cosmicFeedback: "somewhat" }), true);
+assert.equal(cosmicThemesApply({ mode: "cosmic", cosmicInfluence: "", cosmicFeedback: "" }), true);
+assert.equal(cosmicThemesApply({ mode: "fusion", cosmicInfluence: "no", cosmicFeedback: "accurate" }), false);
+
+const quietJazz = illustrationPrompt({
+  title: "An intimate jazz performance",
+  description: "A small room and a live trio.",
+  category: "music",
+  city: "Accra",
+  imagePreference: "subject-only",
+});
+assert.match(quietJazz, /Do not depict an identifiable recipient/);
+assert.doesNotMatch(quietJazz, /Dark skin|Black woman|curly/i);
+
+const depicted = illustrationPrompt({
+  title: "An intimate jazz performance",
+  category: "music",
+  city: "Accra",
+  age: "29",
+  mode: "fusion",
+  imagePreference: "describe-appearance",
+  appearance: { skinTone: "Dark skin", hair: "Natural curly hair", style: "Simple tailored clothes", additionalDetails: "Adult woman" },
+  ethnicityLabels: ["Black / African descent"],
+});
+assert.match(depicted, /Dark skin/);
+assert.match(depicted, /Natural curly hair/);
+assert.match(depicted, /Black \/ African descent/);
+assert.match(depicted, /Do not replace the stated skin tone/);
+assert.match(depicted, /Do not invent physical characteristics from astrology/);
+
+const mixedHeritage = illustrationPrompt({
+  title: "A design book",
+  category: "books",
+  imagePreference: "describe-appearance",
+  appearance: { skinTone: "Medium brown skin", hair: "Dark wavy hair", style: "", additionalDetails: "" },
+  ethnicityLabels: ["Mixed or multiple heritages"],
+});
+assert.match(mixedHeritage, /Medium brown skin/);
+assert.match(mixedHeritage, /Mixed or multiple heritages/);
+
+const optedOut = illustrationPrompt({
+  title: "An intimate jazz performance",
+  category: "music",
+  imagePreference: "no-recipient",
+  appearance: { skinTone: "Dark skin", hair: "Natural curly hair", style: "", additionalDetails: "" },
+  ethnicityLabels: ["Black / African descent"],
+});
+assert.match(optedOut, /Do not depict an identifiable recipient/);
+assert.doesNotMatch(optedOut, /Dark skin/);
+
+const abroad = preferenceText({
+  interestsText: "classical music, Japanese cinema, Scandinavian design, Italian food",
+  interestChips: ["Music"],
+  lovedBefore: "",
+  culturalNotes: "Ghanaian, grew up in London, enjoys Korean food and Japanese design",
+});
+assert.match(abroad, /Korean food/);
+assert.match(abroad, /Japanese cinema/);
+assert.doesNotMatch(abroad, /Black \/ African/);
 assert.equal(shareGenderWithModel({ genderOpenness: "open", gender: "female" }), false);
 assert.equal(qlooGenderFilterApplied(), false);
 

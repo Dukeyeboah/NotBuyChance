@@ -10,7 +10,13 @@
  *
  * Expression number: Pythagorean map on the letters of the name provided
  * (A=1 … I=9, J=1 … R=9, S=1 … Z=8). Spaces and punctuation are ignored.
- * The same reduction rules apply. A first name alone is labeled as limited.
+ * The same reduction rules apply. A single name is noted as a partial name.
+ *
+ * Birthday number: the calendar day, reduced with the same rules. 11 and 22 stay.
+ * Example: the 29th is 2+9 = 11.
+ *
+ * Birth time and birthplace can be stored. They are not used to invent a
+ * rising sign, moon sign, or houses.
  */
 
 import type { CosmicProfile } from "@/types/discovery";
@@ -97,7 +103,7 @@ const LETTER_VALUE: Record<string, number> = {};
 });
 
 export const COSMIC_METHOD =
-  "Western tropical sun sign from the birth date only. Life path is the digit sum of YYYYMMDD, reduced while keeping 11, 22, and 33. The expression number uses the Pythagorean letter map on the name provided. Birth time and birthplace are not used, so this is not a natal chart.";
+  "Western tropical sun sign from the month and day. Life path is the digit sum of YYYYMMDD, reduced while keeping 11, 22, and 33. Birthday number is the calendar day, reduced the same way. The expression number uses the Pythagorean letter map on the name provided. Birth time and birthplace are saved when given, and are not used to calculate a rising sign or houses.";
 
 export function reduceNumber(value: number): number {
   let current = Math.abs(Math.trunc(value));
@@ -173,36 +179,61 @@ export function ageFromIso(iso: string, today = new Date()): number | null {
   return age;
 }
 
+export function birthdayNumber(iso: string): number | null {
+  const parsed = parseIsoDate(iso);
+  if (!parsed) return null;
+  return reduceNumber(parsed.day);
+}
+
 export function buildCosmicProfile(
   name: string,
   birthDate?: string,
+  notes?: { birthTime?: string; birthPlace?: string },
 ): CosmicProfile | null {
   const safeName = name.trim() || "They";
   const expression = expressionNumber(safeName);
   const parsed = birthDate ? parseIsoDate(birthDate) : null;
   const sign = parsed ? sunSign(parsed.month, parsed.day) : undefined;
   const lifePath = birthDate ? lifePathFromIso(birthDate) ?? undefined : undefined;
+  const birthday = birthDate ? birthdayNumber(birthDate) ?? undefined : undefined;
   if (!expression && !sign && !lifePath) return null;
 
   const themes = [
     ...(sign ? SUN_THEMES[sign] ?? [] : []),
     ...(lifePath ? LIFE_PATH_THEMES[lifePath] ?? [] : []),
+    ...(birthday ? LIFE_PATH_THEMES[birthday] ?? [] : []),
   ].filter((theme, index, all) => all.indexOf(theme) === index);
 
   const first = safeName.split(/\s+/)[0] || "They";
+  const themePhrase = themes.slice(0, 3).join(", ");
+  const opening = themePhrase
+    ? `Based on ${first}'s astrological and numerological profile, themes of ${themePhrase} come through. These interpretations suggest directions we could explore when choosing something special.`
+    : `${first}'s profile can grow from here. A birth date adds a sun sign, a life path, and a birthday number.`;
   const color = [
     sign ? SIGN_COLOR[sign] : "",
-    lifePath ? NUMBER_COLOR[lifePath] : "",
-    expression && expression !== lifePath ? `The name number is ${expression}. ${NUMBER_COLOR[expression] ?? ""}` : "",
+    lifePath ? `Life path ${lifePath}. ${NUMBER_COLOR[lifePath] ?? ""}` : "",
+    birthday ? `Birthday number ${birthday}. ${NUMBER_COLOR[birthday] ?? ""}` : "",
+    expression && expression !== lifePath && expression !== birthday
+      ? `Expression number ${expression}. ${NUMBER_COLOR[expression] ?? ""}`
+      : "",
   ]
     .filter(Boolean)
     .join(" ");
+  const savedPlace = [notes?.birthTime?.trim(), notes?.birthPlace?.trim()].filter(Boolean);
+  const scope = !parsed
+    ? " Add a birth date for the sun sign, life path, and birthday number."
+    : savedPlace.length
+      ? " Birth time and place are saved with this profile. This reading uses the sun sign and the numbers from the date and name. Rising sign and houses are not calculated."
+      : "";
+  const nameNote =
+    safeName.split(/\s+/).length < 2 ? " The expression number uses the name that was entered." : "";
   const limited = !parsed;
-  const reading = `This is a symbolic reading for entertainment, not a personality assessment. ${color || `${first} gets curiosity and care as the playful themes.`} Use that color when a gift needs a little personality. It is a prompt, not a fact about ${first}.${limited ? " Without a birth date, this uses only the name that was shared." : " It is a sun-sign and life-path sketch, not a full birth chart."}`;
+  const reading = `${opening} ${color}${scope}${nameNote}`.replace(/\s+/g, " ").trim();
 
   return {
     sunSign: sign,
     lifePath,
+    birthdayNumber: birthday,
     expression: expression ?? undefined,
     themes: themes.slice(0, 6),
     reading,

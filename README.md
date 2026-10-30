@@ -50,11 +50,12 @@ Fusion adds 0.03 or 0.06 after that sum when cosmic influence is allowed. Friend
 
 Documented in `lib/cosmic/calculate.ts`.
 
-- Western tropical sun sign from month and day. No ascendant, houses, or moon sign.
+- Western tropical sun sign from month and day. Birth time and birthplace can be saved. Rising sign, houses, and moon sign are not calculated.
 - Life path: digit sum of `YYYYMMDD`, reduced, keeping 11, 22, and 33. `2000-01-08` is 11.
+- Birthday number: the calendar day, reduced the same way. The 29th is 11.
 - Expression number: Pythagorean letter values on the name that was typed, reduced the same way.
 
-The reading is a template over those numbers. It is labeled as entertainment.
+The reading is a template over those results. Taste mode does not use it. Cosmic and Fusion can, unless the person says it doesn't sound like them. Ethnicity and appearance details stay out of Qloo and out of taste matching. Appearance is used only when an illustration is asked to include the person.
 
 ## Run it
 
@@ -80,7 +81,7 @@ npm run lint
 | `OPENAI_API_KEY` | Yes | Planner, explanations, refinement |
 | `OPENAI_MODEL` | No | Defaults to `gpt-4.1-mini` |
 | `SERPER_API_KEY` | No | Live event and place lookup |
-| `REPLICATE_API_TOKEN` | No | Cartoon illustrations on finding cards, via Replicate `openai/gpt-image-2` |
+| `REPLICATE_API_TOKEN` | No | Unused while AI illustrations are off. Cards use a Qloo image when one exists, otherwise a category icon. |
 | `NEXT_PUBLIC_FIREBASE_*` | No | Google and email sign-in, plus Firestore sync |
 
 Without Firebase, profiles stay in the browser. Rules for a connected project are in `firestore.rules`: a signed-in user can read and write only `users/{their uid}/**`.
@@ -106,7 +107,7 @@ NotBuyChance helps you find a gift or experience for a specific person, not a pr
 - Accra place coverage can be thin. Nearby mode is allowed to offer ideas that are not in the city, and local-only mode drops places that are clearly somewhere else.
 - Prices are shown only when the source states the amount and the currency. Budget bands are labeled in US dollars, or in the currency that matches the selected country.
 - Finding cards include a web or maps search link so a gift can be looked up. Those are search links, not verified shops. A language model is a poor source of URLs, so the links are built from the title or copied from a real search result. `gpt-4.1-mini` is still the right planner.
-- Illustrations are cartoons from Replicate's GPT Image model when `REPLICATE_API_TOKEN` is set. They are imagined scenes, not photos of the person or proof the place looks that way.
+- Illustrations are off. A finding card uses a Qloo image when the entity has one, and a category icon on a soft background otherwise. Those source images are labeled. An AI illustration is not requested.
 - Astrology and numerology are not personality assessments.
 - There is no checkout, social graph, or public directory of the people you profile.
 

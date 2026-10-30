@@ -2,7 +2,7 @@
 
 import { useEffect, useMemo, useState } from "react";
 import { useSearchParams } from "next/navigation";
-import type { DiscoveryDraft, DiscoveryResult, FeedbackReason, Reaction, Recommendation } from "@/types/discovery";
+import type { CosmicProfile, DiscoveryDraft, DiscoveryResult, FeedbackReason, Reaction, Recommendation } from "@/types/discovery";
 import { emptyDraft, sampleDraft } from "@/lib/draft";
 import { COUNTRIES, currencyForCountry } from "@/lib/countries";
 import { buildCosmicProfile } from "@/lib/cosmic/calculate";
@@ -21,6 +21,8 @@ import { budgetLabel, currencyName, formatMoney } from "@/lib/format";
 import { firstName } from "@/lib/text";
 import { LoadingStory } from "@/components/loading-story";
 import { saveDiscovery, saveFeedback, updateDraft } from "@/lib/storage";
+import { aiIllustrationsEnabled } from "@/lib/ai-illustrations";
+import { ETHNICITY_OPTIONS } from "@/lib/identity";
 import { CategoryIcon } from "@/components/category-icon";
 import { utilityIcons } from "@/lib/icons";
 import { Button, Choice, Field, TextArea, TextInput } from "@/components/ui";
@@ -30,7 +32,7 @@ const STEPS = ["Who", "Occasion", "Style", "Tastes", "Details", "Review"] as con
 const STEP_NOTES = [
   "Let's get to know them.",
   "Nice. What's the moment for?",
-  "Taste is the default. Cosmic themes stay optional.",
+  "Explore astrological and numerological insights as another way to inspire personalized discoveries.",
   "I'm starting to see a few interesting directions.",
   "What kind of surprise feels right?",
   "Let's see what we can discover.",
@@ -134,8 +136,12 @@ export function DiscoverFlow() {
   }, [loading]);
 
   const cosmic = useMemo(
-    () => (draft.mode === "taste" ? null : buildCosmicProfile(draft.name || "They", draft.birthDate || undefined)),
-    [draft.birthDate, draft.mode, draft.name],
+    () =>
+      buildCosmicProfile(draft.name || "They", draft.birthDate || undefined, {
+        birthTime: draft.birthTime,
+        birthPlace: draft.birthPlace,
+      }),
+    [draft.birthDate, draft.birthPlace, draft.birthTime, draft.name],
   );
 
   function update(patch: Partial<DiscoveryDraft>) {
@@ -394,7 +400,7 @@ export function DiscoverFlow() {
         {step === 0 ? <WhoStep draft={draft} update={update} setCountry={setCountry} /> : null}
         {step === 1 ? <OccasionStep draft={draft} update={update} /> : null}
         {step === 2 ? (
-          <StyleStep draft={draft} update={update} cosmicReading={cosmic?.reading} cosmicLimited={cosmic?.limited} themes={cosmic?.themes} />
+          <StyleStep draft={draft} update={update} cosmic={cosmic} />
         ) : null}
         {step === 3 ? <TasteStep draft={draft} update={update} /> : null}
         {step === 4 ? <DetailStep draft={draft} update={update} /> : null}
@@ -475,6 +481,14 @@ function WhoStep({
           <TextInput inputMode="numeric" value={draft.age} onChange={(event) => update({ age: event.target.value })} placeholder="29" />
         </Field>
       </div>
+      <div className="grid gap-4 sm:grid-cols-2">
+        <Field label="Birth time" hint="Optional. Saved with the profile. A rising sign is not calculated from it.">
+          <TextInput type="time" value={draft.birthTime} onChange={(event) => update({ birthTime: event.target.value })} />
+        </Field>
+        <Field label="Birthplace" hint="Optional. City or town, if you know it.">
+          <TextInput value={draft.birthPlace} onChange={(event) => update({ birthPlace: event.target.value })} placeholder="Accra" />
+        </Field>
+      </div>
       <Field label="Age range" hint="Skip this if you don't know.">
         <div className="flex flex-wrap gap-2">
           {AGE_RANGES.map((range) => (
@@ -524,6 +538,120 @@ function WhoStep({
           />
         </div>
       </fieldset>
+      <details className="rounded-[28px] border border-line bg-card p-5">
+        <summary className="cursor-pointer text-sm font-medium">A little more about them, if you want</summary>
+        <p className="mt-3 text-sm leading-6 text-muted">
+          Ethnicity and cultural influences are optional. Skip anything you don't know. A heritage label is not treated as a list of tastes.
+        </p>
+        <fieldset className="mt-5">
+          <legend className="text-sm font-medium">How would they describe their ethnicity or heritage?</legend>
+          <p className="mt-2 text-sm leading-6 text-muted">This can help us personalize cultural context and visual representations when relevant. Choose more than one if it fits.</p>
+          <div className="mt-3 flex flex-wrap gap-2">
+            {ETHNICITY_OPTIONS.map(([id, label]) => {
+              const selected = draft.ethnicity.includes(id);
+              return (
+                <button
+                  key={id}
+                  type="button"
+                  aria-pressed={selected}
+                  onClick={() => {
+                    if (id === "prefer_not") {
+                      update({ ethnicity: selected ? [] : ["prefer_not"] });
+                      return;
+                    }
+                    update({
+                      ethnicity: toggle(
+                        draft.ethnicity.filter((item) => item !== "prefer_not"),
+                        id,
+                      ),
+                    });
+                  }}
+                  className={`min-h-10 rounded-full px-3 text-sm ${selected ? "chip-on" : "bg-ivory ring-1 ring-line"}`}
+                >
+                  {label}
+                </button>
+              );
+            })}
+          </div>
+          {draft.ethnicity.includes("self_describe") ? (
+            <TextInput
+              className="mt-3"
+              value={draft.ethnicityOther}
+              onChange={(event) => update({ ethnicityOther: event.target.value })}
+              placeholder="In their words"
+            />
+          ) : null}
+        </fieldset>
+        <fieldset className="mt-6">
+          <legend className="text-sm font-medium">Are there cultural influences or traditions they especially connect with?</legend>
+          <p className="mt-2 text-sm leading-6 text-muted">
+            Share foods, music, traditions, or places they actually enjoy. A label alone won't decide their taste.
+          </p>
+          <div className="mt-3 flex flex-wrap gap-2">
+            {CULTURAL_OPTIONS.map(([id, label]) => {
+              const selected = draft.culturalLabels.includes(id);
+              return (
+                <button
+                  key={id}
+                  type="button"
+                  aria-pressed={selected}
+                  onClick={() => update({ culturalLabels: toggle(draft.culturalLabels, id) })}
+                  className={`min-h-10 rounded-full px-3 text-sm ${selected ? "chip-on" : "bg-ivory ring-1 ring-line"}`}
+                >
+                  {label}
+                </button>
+              );
+            })}
+          </div>
+          <Field label="Anything more specific?" hint="Skip this if you'd rather not say.">
+            <TextArea
+              value={draft.culturalNotes}
+              onChange={(event) => update({ culturalNotes: event.target.value })}
+              placeholder="She's Ghanaian, grew up in London, and enjoys Korean food and Japanese design."
+            />
+          </Field>
+        </fieldset>
+        {aiIllustrationsEnabled ? (
+        <fieldset className="mt-6">
+          <legend className="text-sm font-medium">How should we represent this person in generated images?</legend>
+          <div className="mt-3 grid gap-2">
+            <Choice
+              selected={draft.imagePreference === "describe-appearance"}
+              title="Use the appearance details I provide"
+              detail="Illustrations can include a person who matches what you describe."
+              onClick={() => update({ imagePreference: "describe-appearance" })}
+            />
+            <Choice
+              selected={draft.imagePreference === "" || draft.imagePreference === "subject-only"}
+              title="Keep images focused on the gift or experience"
+              detail="The picture stays on the place, object, or meal."
+              onClick={() => update({ imagePreference: "subject-only" })}
+            />
+            <Choice
+              selected={draft.imagePreference === "no-recipient"}
+              title="Don't depict the recipient"
+              onClick={() => update({ imagePreference: "no-recipient" })}
+            />
+          </div>
+          {draft.imagePreference === "describe-appearance" ? (
+            <div className="mt-4 grid gap-3">
+              <Field label="Skin tone or complexion">
+                <TextInput value={draft.visualAppearance.skinTone} onChange={(event) => update({ visualAppearance: { ...draft.visualAppearance, skinTone: event.target.value } })} placeholder="Dark skin" />
+              </Field>
+              <Field label="Hair">
+                <TextInput value={draft.visualAppearance.hair} onChange={(event) => update({ visualAppearance: { ...draft.visualAppearance, hair: event.target.value } })} placeholder="Natural curly hair" />
+              </Field>
+              <Field label="Clothing or visual style">
+                <TextInput value={draft.visualAppearance.style} onChange={(event) => update({ visualAppearance: { ...draft.visualAppearance, style: event.target.value } })} placeholder="Simple tailored clothes" />
+              </Field>
+              <Field label="Anything else that should show" hint="Only what you want an illustration to follow.">
+                <TextArea value={draft.visualAppearance.additionalDetails} onChange={(event) => update({ visualAppearance: { ...draft.visualAppearance, additionalDetails: event.target.value } })} placeholder="Adult woman, warm smile, no jewelry" />
+              </Field>
+            </div>
+          ) : null}
+        </fieldset>
+        ) : null}
+      </details>
     </div>
   );
 }
@@ -570,29 +698,32 @@ function OccasionStep({
 function StyleStep({
   draft,
   update,
-  cosmicReading,
-  cosmicLimited,
-  themes,
+  cosmic,
 }: {
   draft: DiscoveryDraft;
   update: (patch: Partial<DiscoveryDraft>) => void;
-  cosmicReading?: string;
-  cosmicLimited?: boolean;
-  themes?: string[];
+  cosmic: CosmicProfile | null;
 }) {
   const name = draft.name.trim() || "them";
+  const facts = [
+    cosmic?.sunSign ? `Sun sign: ${cosmic.sunSign}` : "",
+    cosmic?.lifePath ? `Life path number: ${cosmic.lifePath}` : "",
+    cosmic?.birthdayNumber ? `Birthday number: ${cosmic.birthdayNumber}` : "",
+    cosmic?.expression ? `Expression number: ${cosmic.expression}` : "",
+    cosmic?.themes.length ? `Associated themes: ${cosmic.themes.join(", ")}` : "",
+  ].filter(Boolean);
   return (
     <div className="space-y-6">
       <div>
         <h1 className="font-display text-4xl">How would you like to discover?</h1>
-        <p className="mt-3 text-muted">Taste is the default. Cosmic themes are symbolic entertainment, not a personality test.</p>
+        <p className="mt-3 text-muted">Explore astrological and numerological insights as another way to inspire personalized discoveries.</p>
       </div>
       <div className="grid gap-3 lg:grid-cols-3">
         {(
           [
-            ["taste", "Taste", "Stated interests, Qloo affinities, and your feedback."],
-            ["cosmic", "Cosmic", "Gift ideas inspired by sun-sign and life-path themes."],
-            ["fusion", "Fusion", "Taste first, with a light cosmic accent if you allow it."],
+            ["taste", "Taste", "Known interests, cultural notes, Qloo affinities, and your feedback."],
+            ["cosmic", "Cosmic", "Sun-sign and numerology themes lead, within budget, place, occasion, and dislikes."],
+            ["fusion", "Fusion", "Qloo affinities and cosmic themes together."],
           ] as const
         ).map(([id, title, detail]) => (
           <Choice
@@ -618,19 +749,30 @@ function StyleStep({
           />
         ))}
       </div>
-      {draft.mode === "taste" ? null : cosmicReading ? (
+      {cosmic ? (
         <div className="rounded-[28px] border border-line bg-card p-5">
-          <p className="text-sm text-muted">A little cosmic insight into {name}</p>
-          <p className="mt-3 leading-7">{cosmicReading}</p>
-          {themes?.length ? <p className="mt-3 text-sm text-muted">Themes: {themes.join(" · ")}</p> : null}
-          {cosmicLimited ? <p className="mt-3 text-sm text-muted">Add a birth date if you want a sun sign and life path. A name alone is a thinner reading.</p> : null}
-          <p className="mt-5 text-sm font-medium">Does this sound like {name}?</p>
+          <p className="text-sm text-muted">A little more about {name}</p>
+          <p className="mt-3 leading-7">{cosmic.reading}</p>
+          {facts.length ? (
+            <ul className="mt-4 space-y-1 text-sm">
+              {facts.map((fact) => (
+                <li key={fact}>{fact}</li>
+              ))}
+            </ul>
+          ) : null}
+          {cosmic.limited ? (
+            <p className="mt-3 text-sm text-muted">Add a birth date for a sun sign, life path, and birthday number.</p>
+          ) : null}
+          {draft.mode === "taste" ? (
+            <p className="mt-3 text-sm text-muted">Taste mode follows known interests. Cosmic and Fusion can draw on this profile.</p>
+          ) : null}
+          <p className="mt-5 text-sm font-medium">Does this sound like the person you know?</p>
           <div className="mt-3 grid gap-2">
             {(
               [
-                ["accurate", "Surprisingly accurate"],
-                ["somewhat", "Somewhat accurate"],
-                ["not_really", "Not really"],
+                ["accurate", "Yes, very much."],
+                ["somewhat", "Somewhat."],
+                ["not_really", "Not really."],
               ] as const
             ).map(([id, label]) => (
               <Choice
@@ -647,37 +789,38 @@ function StyleStep({
             ))}
           </div>
           {draft.cosmicFeedback === "somewhat" || draft.cosmicFeedback === "not_really" ? (
-            <Field label="What would you change about this description?">
+            <Field label="What else should we know?">
               <TextArea
                 value={draft.cosmicCorrection}
                 onChange={(event) => update({ cosmicCorrection: event.target.value })}
-                placeholder="She's actually very introverted and prefers quiet activities."
+                placeholder="She's adventurous but doesn't really enjoy crowded places."
               />
             </Field>
           ) : null}
-          {draft.cosmicFeedback === "not_really" ? (
+          {draft.mode !== "taste" && draft.cosmicFeedback === "not_really" ? (
             <p className="mt-5 text-sm leading-6 text-muted">
-              We'll leave these themes out. A reading that doesn't resonate won't shape the suggestions.
+              We'll follow what you know about them. These themes won't shape the suggestions.
             </p>
-          ) : (
+          ) : null}
+          {draft.mode !== "taste" && draft.cosmicFeedback !== "not_really" ? (
             <>
-          <p className="mt-5 text-sm font-medium">Should we use these themes in your discoveries?</p>
-          <div className="mt-3 grid gap-2">
-            {(
-              [
-                ["yes", "Yes, include them."],
-                ["little", "A little influence."],
-                ["no", "No, use known interests instead."],
-              ] as const
-            ).map(([id, label]) => (
-              <Choice key={id} selected={draft.cosmicInfluence === id} title={label} onClick={() => update({ cosmicInfluence: id })} />
-            ))}
-          </div>
+              <p className="mt-5 text-sm font-medium">How should this profile join the discovery?</p>
+              <div className="mt-3 grid gap-2">
+                {(
+                  [
+                    ["yes", "Let these themes inspire the suggestions."],
+                    ["little", "Use them alongside what I already know."],
+                    ["no", "Follow what I know about them."],
+                  ] as const
+                ).map(([id, label]) => (
+                  <Choice key={id} selected={draft.cosmicInfluence === id} title={label} onClick={() => update({ cosmicInfluence: id })} />
+                ))}
+              </div>
             </>
-          )}
+          ) : null}
         </div>
       ) : (
-        <p className="text-sm text-muted">Add a name, and a birth date if you have one, to see a symbolic reading. You can also stay in Taste mode.</p>
+        <p className="text-sm text-muted">Add a name, and a birth date if you have one, to see an astrological and numerological profile.</p>
       )}
       <p className="text-xs text-muted">Current mode: {MODE_LABELS[draft.mode]}.</p>
     </div>
@@ -726,35 +869,6 @@ function TasteStep({
       <Field label="Anything they definitely wouldn't like?" hint="We'll treat this as a strong constraint.">
         <TextArea value={draft.dislikes} onChange={(event) => update({ dislikes: event.target.value })} placeholder="She hates loud crowds and doesn't enjoy expensive luxury brands." />
       </Field>
-      <fieldset>
-        <legend className="font-display text-3xl">Are there any cultural influences we should know about?</legend>
-        <p className="mt-3 text-sm leading-6 text-muted">
-          Culture can shape the music, food, traditions, and experiences someone connects with. Share anything you think might help. This is optional, and a label alone won't decide their taste.
-        </p>
-        <div className="mt-4 flex flex-wrap gap-2">
-          {CULTURAL_OPTIONS.map(([id, label]) => {
-            const selected = draft.culturalLabels.includes(id);
-            return (
-              <button
-                key={id}
-                type="button"
-                aria-pressed={selected}
-                onClick={() => update({ culturalLabels: toggle(draft.culturalLabels, id) })}
-                className={`min-h-10 rounded-full px-3 text-sm ${selected ? "chip-on" : "bg-card ring-1 ring-line"}`}
-              >
-                {label}
-              </button>
-            );
-          })}
-        </div>
-        <Field label="Anything more specific?" hint="Countries, communities, foods, music, or traditions. Skip this if you'd rather not say.">
-          <TextArea
-            value={draft.culturalNotes}
-            onChange={(event) => update({ culturalNotes: event.target.value })}
-            placeholder="Ghanaian and Nigerian cultural influences. She also loves Korean food and Japanese design."
-          />
-        </Field>
-      </fieldset>
     </div>
   );
 }
@@ -875,6 +989,12 @@ function ReviewStep({ draft }: { draft: DiscoveryDraft }) {
           <dt className="text-muted">Mode</dt>
           <dd>{MODE_LABELS[draft.mode]}{draft.mode !== "taste" && draft.cosmicInfluence ? ` · ${draft.cosmicInfluence} cosmic influence` : ""}</dd>
         </div>
+        {draft.imagePreference === "describe-appearance" ? (
+          <div>
+            <dt className="text-muted">Illustrations</dt>
+            <dd>Using the appearance details you added.</dd>
+          </div>
+        ) : null}
         <div>
           <dt className="text-muted">Interests</dt>
           <dd>{[...draft.interestChips, draft.interestsText].filter(Boolean).join(" · ") || "Not much yet — suggestions will be exploratory."}</dd>

@@ -2,6 +2,7 @@ import { z } from "zod";
 import type { DiscoveryDraft, DiscoveryInput, Occasion, Relationship } from "@/types/discovery";
 import { ageFromIso, buildCosmicProfile, parseIsoDate } from "@/lib/cosmic/calculate";
 import { CULTURAL_OPTIONS, normalizeCategories } from "@/lib/qloo/categories";
+import { allowedEthnicity } from "@/lib/identity";
 
 const OCCASIONS = [
   "birthday",
@@ -32,13 +33,26 @@ const draftSchema = z.object({
   forSelf: z.boolean(),
   name: z.string().trim().min(1, "Add a name to continue.").max(80),
   birthDate: z.string().max(20),
+  birthTime: z.string().max(20).optional(),
+  birthPlace: z.string().max(80).optional(),
   age: z.string().max(8),
   ageRange: z.string().max(40),
   gender: z.enum(GENDERS),
   genderCustom: z.string().max(40),
   genderOpenness: z.enum(["open", "demographic"]).optional(),
-  culturalLabels: z.array(z.string().max(40)).max(12).optional(),
+  ethnicity: z.array(z.string().max(40)).max(12).optional(),
+  ethnicityOther: z.string().max(80).optional(),
+  culturalLabels: z.array(z.string().max(40)).max(24).optional(),
   culturalNotes: z.string().max(500).optional(),
+  visualAppearance: z
+    .object({
+      skinTone: z.string().max(80).optional(),
+      hair: z.string().max(80).optional(),
+      style: z.string().max(120).optional(),
+      additionalDetails: z.string().max(300).optional(),
+    })
+    .optional(),
+  imagePreference: z.enum(["describe-appearance", "subject-only", "no-recipient", ""]).optional(),
   country: z.string().max(80),
   city: z.string().max(80),
   relationship: z.string().max(40),
@@ -118,6 +132,13 @@ export function toDiscoveryInput(
   if (!categories.length) return { ok: false, error: "Choose at least one kind of surprise." };
   const allowedCulture = new Set<string>(CULTURAL_OPTIONS.map((option) => option[0]));
   const culturalLabels = (clean.culturalLabels ?? []).filter((label) => allowedCulture.has(label));
+  const appearance = clean.visualAppearance;
+  const imagePreference =
+    clean.imagePreference === "describe-appearance" ||
+    clean.imagePreference === "subject-only" ||
+    clean.imagePreference === "no-recipient"
+      ? clean.imagePreference
+      : "";
   if (clean.geo === "local" && !clean.city.trim()) {
     return { ok: false, error: "Add a city for local-only discovery, or choose a wider area." };
   }
@@ -137,8 +158,19 @@ export function toDiscoveryInput(
     categories,
     gender: clean.gender,
     genderOpenness: clean.genderOpenness === "demographic" ? "demographic" : "open",
+    birthTime: clean.birthTime ?? "",
+    birthPlace: clean.birthPlace ?? "",
+    ethnicity: allowedEthnicity(clean.ethnicity ?? []),
+    ethnicityOther: clean.ethnicityOther ?? "",
     culturalLabels,
     culturalNotes: clean.culturalNotes ?? "",
+    visualAppearance: {
+      skinTone: appearance?.skinTone ?? "",
+      hair: appearance?.hair ?? "",
+      style: appearance?.style ?? "",
+      additionalDetails: appearance?.additionalDetails ?? "",
+    },
+    imagePreference,
     savedIdeas: clean.savedIdeas ?? [],
     cosmicFeedback:
       clean.cosmicFeedback === "accurate" ||
@@ -161,7 +193,10 @@ export function toDiscoveryInput(
       cosmic:
         normalized.mode === "taste"
           ? null
-          : buildCosmicProfile(normalized.name, normalized.birthDate || undefined),
+          : buildCosmicProfile(normalized.name, normalized.birthDate || undefined, {
+              birthTime: normalized.birthTime,
+              birthPlace: normalized.birthPlace,
+            }),
       age: normalized.birthDate
         ? ageFromIso(normalized.birthDate) ?? undefined
         : numberOrUndefined(normalized.age),

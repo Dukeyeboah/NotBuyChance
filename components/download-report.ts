@@ -71,6 +71,15 @@ function profileLines(draft: DiscoveryDraft): string[] {
     "Cultural background",
     [draft.culturalLabels.filter(Boolean).join(", "), draft.culturalNotes].filter(Boolean).join(" — "),
   );
+  add(
+    "Heritage",
+    [
+      ...draft.ethnicity.filter((id) => id !== "prefer_not" && id !== "self_describe"),
+      draft.ethnicity.includes("self_describe") ? draft.ethnicityOther : "",
+    ]
+      .filter(Boolean)
+      .join(", "),
+  );
   add("Interests", [...draft.interestChips, draft.interestsText].filter(Boolean).join(" · "));
   add(
     "Occasion",
@@ -168,7 +177,10 @@ export async function buildFindingsPdf(draft: DiscoveryDraft, result: DiscoveryR
   }
 
   if (draft.mode !== "taste" && draft.cosmicFeedback !== "not_really") {
-    const cosmic = buildCosmicProfile(draft.name, draft.birthDate);
+    const cosmic = buildCosmicProfile(draft.name, draft.birthDate, {
+      birthTime: draft.birthTime,
+      birthPlace: draft.birthPlace,
+    });
     if (cosmic && (cosmic.sunSign || cosmic.lifePath)) {
       heading("Cosmic profile");
       text(

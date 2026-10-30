@@ -32,7 +32,8 @@ export function cosmicThemesApply(draft: Pick<
 >): boolean {
   if (draft.mode === "taste") return false;
   if (draft.cosmicFeedback === "not_really") return false;
-  return draft.cosmicInfluence === "yes" || draft.cosmicInfluence === "little";
+  if (draft.cosmicInfluence === "no") return false;
+  return draft.mode === "cosmic" || draft.mode === "fusion";
 }
 
 export function tasteCompleteness(draft: Pick<

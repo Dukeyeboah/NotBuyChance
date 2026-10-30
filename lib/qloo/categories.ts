@@ -122,6 +122,15 @@ export const CULTURAL_OPTIONS = [
   ["european", "European"],
   ["middle_eastern", "Middle Eastern"],
   ["mixed", "Mixed influences"],
+  ["ghanaian", "Ghanaian"],
+  ["nigerian", "Nigerian"],
+  ["jamaican", "Jamaican"],
+  ["mexican", "Mexican"],
+  ["japanese", "Japanese"],
+  ["korean", "Korean"],
+  ["indian", "Indian"],
+  ["british", "British"],
+  ["french", "French"],
   ["other", "Other"],
 ] as const;
 

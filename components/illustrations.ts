@@ -31,38 +31,55 @@ export function requestIllustration(options: {
   title: string;
   description: string;
   category: string;
+  look?: string;
+  mode?: string;
+  city?: string;
+  age?: string;
+  imagePreference?: string;
+  appearance?: {
+    skinTone?: string;
+    hair?: string;
+    style?: string;
+    additionalDetails?: string;
+  };
+  ethnicityLabels?: string[];
 }): Promise<string | null> {
-  const cached = cache.get(options.id);
+  const cacheKey = `${options.id}::${options.look || ""}`;
+  const cached = cache.get(cacheKey);
   if (cached) return Promise.resolve(cached);
-  const existing = pending.get(options.id);
+  const existing = pending.get(cacheKey);
   if (existing) return existing;
 
+  const body = {
+    title: options.title,
+    description: options.description,
+    category: options.category,
+    mode: options.mode,
+    city: options.city,
+    age: options.age,
+    imagePreference: options.imagePreference,
+    appearance: options.appearance,
+    ethnicityLabels: options.ethnicityLabels,
+  };
   const job = slot().then(async () => {
     try {
       let response = await fetch("/api/illustrate", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          title: options.title,
-          description: options.description,
-          category: options.category,
-        }),
+        body: JSON.stringify(body),
       });
       if (response.status === 429 || response.status === 502) {
         await new Promise((resolve) => setTimeout(resolve, 2500));
         response = await fetch("/api/illustrate", {
           method: "POST",
           headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({
-            title: options.title,
-            description: options.description,
-            category: options.category,
-          }),
+          body: JSON.stringify(body),
         });
       }
       if (!response.ok) return null;
       const payload = (await response.json()) as { url?: string };
       if (payload.url && /^https:\/\//i.test(payload.url)) {
+        cache.set(cacheKey, payload.url);
         cache.set(options.id, payload.url);
         return payload.url;
       }
@@ -73,6 +90,6 @@ export function requestIllustration(options: {
       release();
     }
   });
-  pending.set(options.id, job);
+  pending.set(cacheKey, job);
   return job;
 }

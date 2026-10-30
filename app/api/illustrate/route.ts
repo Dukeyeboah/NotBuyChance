@@ -1,3 +1,6 @@
+import { aiIllustrationsEnabled } from "@/lib/ai-illustrations";
+import { illustrationPrompt } from "@/lib/identity";
+
 export const maxDuration = 60;
 
 const hits = new Map<string, number[]>();
@@ -29,6 +32,9 @@ function outputUrl(output: unknown): string | null {
 }
 
 export async function POST(request: Request) {
+  if (!aiIllustrationsEnabled) {
+    return Response.json({ error: "Illustrations are turned off." }, { status: 404 });
+  }
   const ip = request.headers.get("x-forwarded-for")?.split(",")[0]?.trim() || "local";
   if (!allowed(ip)) {
     return Response.json({ error: "Too many illustration requests. Wait a minute." }, { status: 429 });
@@ -52,16 +58,30 @@ export async function POST(request: Request) {
   if (title.length < 2) {
     return Response.json({ error: "A title is required." }, { status: 400 });
   }
+  const appearance =
+    record.appearance && typeof record.appearance === "object"
+      ? (record.appearance as Record<string, unknown>)
+      : {};
+  const ethnicityLabels = Array.isArray(record.ethnicityLabels)
+    ? record.ethnicityLabels.map((label) => clip(label, 60)).filter(Boolean).slice(0, 6)
+    : [];
 
-  const prompt = [
-    "A warm cartoon illustration with rounded shapes, soft light, and a coral, violet, and cream palette.",
-    `Scene: ${title}.`,
-    description ? `Moment: ${description}` : "",
-    category ? `Kind of find: ${category}.` : "",
-    "No text, no letters, no logos, no watermark, and no photorealistic portrait of a real person.",
-  ]
-    .filter(Boolean)
-    .join(" ");
+  const prompt = illustrationPrompt({
+    title,
+    description,
+    category,
+    mode: clip(record.mode, 20),
+    city: clip(record.city, 80),
+    age: clip(record.age, 20),
+    imagePreference: clip(record.imagePreference, 40),
+    appearance: {
+      skinTone: clip(appearance.skinTone, 80),
+      hair: clip(appearance.hair, 80),
+      style: clip(appearance.style, 120),
+      additionalDetails: clip(appearance.additionalDetails, 300),
+    },
+    ethnicityLabels,
+  });
 
   const input: Record<string, unknown> = {
     prompt,
