@@ -343,12 +343,10 @@ export function DiscoverFlow() {
               return;
             }
             void discover(
-              { ...draft, geo: action === "nearby" ? "nearby" : "anywhere" },
+              { ...draft, geo: "nearby" },
               undefined,
               false,
-              action === "nearby"
-                ? "I'll look a little further from the city."
-                : "I'll look beyond the local area for this search.",
+              "I'll look a little further from the city.",
             );
           }}
           onPrompt={(prompt) => {
@@ -462,7 +460,7 @@ function WhoStep({
           </div>
         </fieldset>
       )}
-      <div className="grid grid-cols-2 items-end gap-4">
+      <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4 lg:items-end lg:[&>*]:min-w-0">
         <Field label="Country" aside="Optional. Used for nearby ideas.">
           <TextInput list="countries" value={draft.country} onChange={(event) => setCountry(event.target.value)} placeholder="Ghana" />
           <datalist id="countries">
@@ -474,57 +472,57 @@ function WhoStep({
         <Field label="City">
           <TextInput value={draft.city} onChange={(event) => update({ city: event.target.value })} placeholder="Accra" />
         </Field>
-      </div>
-      <div>
-        <div className="flex flex-wrap items-baseline justify-between gap-x-4 gap-y-2">
-          <span className="text-sm font-medium">
-            {ageEntry === "date" ? "Date of birth" : "Age"}
+        <Field label="Birthplace" aside="optional">
+          <TextInput value={draft.birthPlace} onChange={(event) => update({ birthPlace: event.target.value })} placeholder="Accra" />
+        </Field>
+        <div>
+          <div className="flex flex-wrap items-baseline justify-between gap-x-2 gap-y-1">
+            <span className="text-sm font-medium">
+              {ageEntry === "date" ? "Date of birth" : "Age"}
+              {ageEntry === "date" ? (
+                <span className="ml-1.5 font-normal italic text-muted">(used for more accurate personality reading)</span>
+              ) : null}
+            </span>
+            <div className="inline-flex rounded-full bg-card p-1 ring-1 ring-line" role="group" aria-label="Age entry">
+              {(
+                [
+                  ["date", "Date"],
+                  ["age", "Age"],
+                ] as const
+              ).map(([id, label]) => (
+                <button
+                  key={id}
+                  type="button"
+                  aria-pressed={ageEntry === id}
+                  onClick={() => {
+                    setAgeEntry(id);
+                    update(id === "date" ? { age: "" } : { birthDate: "" });
+                  }}
+                  className={`min-h-8 rounded-full px-2.5 text-xs ${ageEntry === id ? "chip-on" : "text-muted"}`}
+                >
+                  {label}
+                </button>
+              ))}
+            </div>
+          </div>
+          <div className="mt-2">
             {ageEntry === "date" ? (
-              <span className="ml-1.5 font-normal italic text-muted">(used for more accurate personality reading)</span>
-            ) : null}
-          </span>
-          <div className="inline-flex rounded-full bg-card p-1 ring-1 ring-line" role="group" aria-label="Age entry">
-            {(
-              [
-                ["date", "Date of birth"],
-                ["age", "Age"],
-              ] as const
-            ).map(([id, label]) => (
-              <button
-                key={id}
-                type="button"
-                aria-pressed={ageEntry === id}
-                onClick={() => {
-                  setAgeEntry(id);
-                  update(id === "date" ? { age: "" } : { birthDate: "" });
-                }}
-                className={`min-h-9 rounded-full px-3 text-sm ${ageEntry === id ? "chip-on" : "text-muted"}`}
-              >
-                {label}
-              </button>
-            ))}
+              <TextInput
+                type="date"
+                value={draft.birthDate}
+                onChange={(event) => update({ birthDate: event.target.value, age: "", ageRange: event.target.value ? "" : draft.ageRange })}
+              />
+            ) : (
+              <TextInput
+                inputMode="numeric"
+                value={draft.age}
+                onChange={(event) => update({ age: event.target.value, birthDate: "", ageRange: event.target.value.trim() ? "" : draft.ageRange })}
+                placeholder="29"
+              />
+            )}
           </div>
         </div>
-        <div className="mt-2">
-          {ageEntry === "date" ? (
-            <TextInput
-              type="date"
-              value={draft.birthDate}
-              onChange={(event) => update({ birthDate: event.target.value, age: "", ageRange: event.target.value ? "" : draft.ageRange })}
-            />
-          ) : (
-            <TextInput
-              inputMode="numeric"
-              value={draft.age}
-              onChange={(event) => update({ age: event.target.value, birthDate: "", ageRange: event.target.value.trim() ? "" : draft.ageRange })}
-              placeholder="29"
-            />
-          )}
-        </div>
       </div>
-      <Field label="Birthplace" aside="optional">
-        <TextInput value={draft.birthPlace} onChange={(event) => update({ birthPlace: event.target.value })} placeholder="Accra" />
-      </Field>
       {hasExactAge ? null : (
         <Field label="Age range">
           <div className="flex flex-wrap gap-2">
@@ -749,13 +747,8 @@ function StyleStep({
   cosmic: CosmicProfile | null;
 }) {
   const name = firstName(draft.name);
-  const facts = [
-    cosmic?.sunSign ? `Sun sign: ${cosmic.sunSign}` : "",
-    cosmic?.lifePath ? `Life path number: ${cosmic.lifePath}` : "",
-    cosmic?.birthdayNumber ? `Birthday number: ${cosmic.birthdayNumber}` : "",
-    cosmic?.expression ? `Expression number: ${cosmic.expression}` : "",
-    cosmic?.themes.length ? `Associated themes: ${cosmic.themes.join(", ")}` : "",
-  ].filter(Boolean);
+  const themes = cosmic?.themes ?? [];
+  const showJoin = draft.mode !== "taste" && draft.cosmicFeedback !== "not_really";
   return (
     <div className="space-y-6">
       <div>
@@ -789,79 +782,94 @@ function StyleStep({
                 }
               />
             }
-            onClick={() => update({ mode: id })}
+            onClick={() =>
+              update({
+                mode: id,
+                cosmicInfluence:
+                  id === "taste" || draft.cosmicInfluence
+                    ? draft.cosmicInfluence
+                    : id === "fusion"
+                      ? "little"
+                      : "yes",
+              })
+            }
           />
         ))}
       </div>
       {cosmic ? (
         <div className="rounded-[28px] border border-line bg-card p-5">
           <p className="text-sm text-muted">A little more about {name}</p>
-          <p className="mt-3 leading-7">{cosmic.reading}</p>
-          {facts.length ? (
-            <ul className="mt-4 space-y-1 text-sm">
-              {facts.map((fact) => (
-                <li key={fact}>{fact}</li>
-              ))}
-            </ul>
-          ) : null}
-          {cosmic.limited ? (
-            <p className="mt-3 text-sm text-muted">Add a birth date for a sun sign, life path, and birthday number.</p>
-          ) : null}
+          <p className="mt-3 leading-7">
+            {themes.length
+              ? `Based on ${name}'s astrological and numerological profile, themes of ${themes.slice(0, 3).join(", ")} come through. These interpretations suggest directions we could explore when choosing something special.`
+              : `${name}'s profile can grow from here.`}
+          </p>
+          {themes.length ? <p className="mt-4 text-sm">Associated themes: {themes.join(", ")}</p> : null}
           {draft.mode === "taste" ? (
             <p className="mt-3 text-sm text-muted">Taste mode follows known interests. Cosmic and Fusion can draw on this profile.</p>
           ) : null}
-          <p className="mt-5 text-sm font-medium">Does this sound like the person you know?</p>
-          <div className="mt-3 grid gap-2">
-            {(
-              [
-                ["accurate", "Yes, very much."],
-                ["somewhat", "Somewhat."],
-                ["not_really", "Not really."],
-              ] as const
-            ).map(([id, label]) => (
-              <Choice
-                key={id}
-                selected={draft.cosmicFeedback === id}
-                title={label}
-                onClick={() =>
-                  update({
-                    cosmicFeedback: id,
-                    cosmicInfluence: id === "accurate" ? "yes" : id === "somewhat" ? "little" : "no",
-                  })
-                }
-              />
-            ))}
-          </div>
-          {draft.cosmicFeedback === "somewhat" || draft.cosmicFeedback === "not_really" ? (
-            <Field label="What else should we know?">
-              <TextArea
-                value={draft.cosmicCorrection}
-                onChange={(event) => update({ cosmicCorrection: event.target.value })}
-                placeholder="She's adventurous but doesn't really enjoy crowded places."
-              />
-            </Field>
-          ) : null}
-          {draft.mode !== "taste" && draft.cosmicFeedback === "not_really" ? (
-            <p className="mt-5 text-sm leading-6 text-muted">
-              We'll follow what you know about them. These themes won't shape the suggestions.
-            </p>
-          ) : null}
-          {draft.mode !== "taste" && draft.cosmicFeedback !== "not_really" ? (
-            <>
-              <p className="mt-5 text-sm font-medium">How should this profile join the discovery?</p>
-              <div className="mt-3 grid gap-2">
+          <div className={`mt-5 grid items-start gap-6 ${showJoin ? "lg:grid-cols-2" : ""}`}>
+            <div>
+              <p className="text-sm font-medium">Does this sound like the person you know?</p>
+              <div className="mt-3 flex flex-col items-start gap-2">
                 {(
                   [
-                    ["yes", "Let these themes inspire the suggestions."],
-                    ["little", "Use them alongside what I already know."],
-                    ["no", "Follow what I know about them."],
+                    ["accurate", "Yes, very much."],
+                    ["somewhat", "Somewhat."],
+                    ["not_really", "Not really."],
                   ] as const
                 ).map(([id, label]) => (
-                  <Choice key={id} selected={draft.cosmicInfluence === id} title={label} onClick={() => update({ cosmicInfluence: id })} />
+                  <Choice
+                    key={id}
+                    className="w-fit"
+                    selected={draft.cosmicFeedback === id}
+                    title={label}
+                    onClick={() =>
+                      update({
+                        cosmicFeedback: id,
+                        cosmicInfluence: id === "accurate" ? "yes" : id === "somewhat" ? "little" : "no",
+                      })
+                    }
+                  />
                 ))}
               </div>
-            </>
-          ) : null}
+              {draft.cosmicFeedback === "somewhat" || draft.cosmicFeedback === "not_really" ? (
+                <Field label="What else should we know?">
+                  <TextArea
+                    value={draft.cosmicCorrection}
+                    onChange={(event) => update({ cosmicCorrection: event.target.value })}
+                    placeholder="She's adventurous but doesn't really enjoy crowded places."
+                  />
+                </Field>
+              ) : null}
+            </div>
+            {showJoin ? (
+              <div>
+                <p className="text-sm font-medium">How should this profile join the discovery?</p>
+                <div className="mt-3 flex flex-col items-start gap-2">
+                  {(
+                    [
+                      ["yes", "Let these themes inspire the suggestions."],
+                      ["little", "Use them alongside what I already know."],
+                      ["no", "Follow what I know about them."],
+                    ] as const
+                  ).map(([id, label]) => (
+                    <Choice
+                      key={id}
+                      className="w-fit"
+                      selected={draft.cosmicInfluence === id}
+                      title={label}
+                      onClick={() => update({ cosmicInfluence: id })}
+                    />
+                  ))}
+                </div>
+              </div>
+            ) : draft.mode !== "taste" && draft.cosmicFeedback === "not_really" ? (
+              <p className="text-sm leading-6 text-muted">
+                We'll follow what you know about them. These themes won't shape the suggestions.
+              </p>
+            ) : null}
+          </div>
         </div>
       ) : (
         <p className="text-sm text-muted">Add a name, and a birth date if you have one, to see an astrological and numerological profile.</p>
@@ -991,15 +999,14 @@ function DetailStep({
       </fieldset>
       <fieldset>
         <legend className="font-display text-3xl">How important is location?</legend>
-        <div className="mt-4 grid gap-2 lg:grid-cols-3">
+        <div className="mt-4 grid gap-2 lg:grid-cols-2">
           {(
             [
-              ["local", "Local only", "Prioritize the selected city."],
-              ["nearby", "Prefer nearby", "Start with the city or country, and allow good alternatives."],
-              ["anywhere", "Anywhere", "Useful for books, music, and brands."],
+              ["local", "Their location", "Use the city and country you entered."],
+              ["nearby", "Prefer nearby", "Start with that place, and allow good alternatives close by."],
             ] as const
           ).map(([id, title, detail]) => (
-            <Choice key={id} selected={draft.geo === id} title={title} detail={detail} onClick={() => update({ geo: id })} />
+            <Choice key={id} selected={draft.geo === id || (id === "local" && draft.geo === "anywhere")} title={title} detail={detail} onClick={() => update({ geo: id })} />
           ))}
         </div>
       </fieldset>
@@ -1011,12 +1018,12 @@ function ReviewStep({ draft }: { draft: DiscoveryDraft }) {
   const fullName = draft.name.trim() || "them";
   const name = firstName(draft.name);
   return (
-    <div className="space-y-5 lg:grid lg:grid-cols-[1.1fr_0.9fr] lg:items-start lg:gap-8 lg:space-y-0">
+    <div className="mx-auto max-w-2xl space-y-5 text-center">
       <div>
         <h1 className="font-display text-4xl">Ready when you are.</h1>
         <p className="mt-3 text-muted">We'll use this to look for something {name} might love.</p>
       </div>
-      <dl className="space-y-3 rounded-[28px] border border-line bg-card p-5 text-sm leading-6">
+      <dl className="space-y-3 rounded-[28px] border border-line bg-card p-5 text-left text-sm leading-6">
         <div>
           <dt className="text-muted">Person</dt>
           <dd>{fullName} · {RELATIONSHIP_LABELS[draft.forSelf ? "myself" : draft.relationship] || "Relationship not set"}</dd>
@@ -1062,7 +1069,7 @@ function ReviewStep({ draft }: { draft: DiscoveryDraft }) {
           </dd>
         </div>
       </dl>
-        <p className="text-xs leading-5 text-muted lg:col-span-2">
+        <p className="text-xs leading-5 text-muted">
           Friendly, moderate, and premium are rough bands in {currencyName(draft.currency)}. A price is shown only when a source states it.
         </p>
     </div>

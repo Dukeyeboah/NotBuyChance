@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import type {
   DiscoveryDraft,
   DiscoveryResult,
@@ -16,15 +16,14 @@ import {
   RELATIONSHIP_LABELS,
   SUITABILITY_LABELS,
   categoryLabel,
-  categoryShortLabel,
-  normalizeCategories,
 } from "@/lib/qloo/categories";
 import { guidanceFor, tasteCompleteness } from "@/lib/discovery-rules";
+import { affinityChance } from "@/lib/agent/rank";
 import { budgetLabel, formatMoney } from "@/lib/format";
 import { lookupLinks } from "@/lib/links";
 import { firstName } from "@/lib/text";
 import { aiIllustrationsEnabled } from "@/lib/ai-illustrations";
-import { discoveryIcons, iconForCategory, utilityIcons } from "@/lib/icons";
+import { discoveryIcons, utilityIcons } from "@/lib/icons";
 import { illustrationFor, requestIllustration } from "@/components/illustrations";
 import { ETHNICITY_OPTIONS, appearanceText, depictsRecipient } from "@/lib/identity";
 import { downloadFindings } from "@/components/download-report";
@@ -84,6 +83,7 @@ function RecommendationCard({
   saved,
   featured,
   scene,
+  backupImage,
   onReact,
   onSave,
 }: {
@@ -95,6 +95,7 @@ function RecommendationCard({
   saved?: boolean;
   featured?: boolean;
   scene: IllustrationScene;
+  backupImage?: string;
   onReact: (reaction: Reaction, reason?: FeedbackReason) => void;
   onSave?: () => void;
 }) {
@@ -102,9 +103,13 @@ function RecommendationCard({
   const [drawing, setDrawing] = useState<string | undefined>(
     aiIllustrationsEnabled ? illustrationFor(item.id) : undefined,
   );
-  const [photoFailed, setPhotoFailed] = useState(false);
-  const sourceImage = item.qlooEvidence.find((evidence) => evidence.imageUrl)?.imageUrl;
-  const photo = !photoFailed && sourceImage && /^https:\/\//i.test(sourceImage) ? sourceImage : undefined;
+  const [qlooFailed, setQlooFailed] = useState(false);
+  const [backupFailed, setBackupFailed] = useState(false);
+  const qlooImage = item.qlooEvidence.find((evidence) => evidence.imageUrl)?.imageUrl;
+  const qlooPhoto = !qlooFailed && qlooImage && /^https:\/\//i.test(qlooImage) ? qlooImage : undefined;
+  const backupPhoto = !backupFailed && backupImage && /^https:\/\//i.test(backupImage) ? backupImage : undefined;
+  const photo = qlooPhoto || backupPhoto;
+  const photoIsBackup = !qlooPhoto && Boolean(backupPhoto);
   const links = lookupLinks(item, { city, country });
   const price =
     item.price.status === "verified" && item.price.amount != null && item.price.currency
@@ -137,62 +142,31 @@ function RecommendationCard({
 
   return (
     <article className="rise lift flex h-full flex-col rounded-[28px] border border-line bg-card p-4 shadow-[0_16px_40px_rgba(79,70,229,0.06)] sm:p-5">
-      <div className="relative mb-4 overflow-hidden rounded-[22px]">
+      <div className="flex items-start gap-3">
         {photo ? (
           <img
             src={photo}
             alt=""
-            className="aspect-[3/2] w-full object-cover"
-            onError={() => setPhotoFailed(true)}
+            className="h-16 w-16 shrink-0 rounded-2xl object-cover"
+            onError={() => (photoIsBackup ? setBackupFailed(true) : setQlooFailed(true))}
           />
         ) : aiIllustrationsEnabled && drawing ? (
-          <img src={drawing} alt="" className="aspect-[3/2] w-full object-cover" />
+          <img src={drawing} alt="" className="h-16 w-16 shrink-0 rounded-2xl object-cover" />
         ) : (
-          <div
-            className={`flex aspect-[3/2] items-center justify-center ${
-              [
-                "dining",
-                "fashion",
-                "music",
-                "books",
-                "screen",
-                "tech",
-                "experiences",
-                "surprise",
-              ].includes(item.category)
-                ? `tone-${item.category}`
-                : "tone-surprise"
-            }`}
-          >
-            <img
-              src={discoveryIcons[item.category] || utilityIcons.gift}
-              alt=""
-              className="h-[88px] w-[88px] object-contain"
-            />
-          </div>
+          <img
+            src={discoveryIcons[item.category] || utilityIcons.gift}
+            alt=""
+            className="h-14 w-14 shrink-0 object-contain"
+          />
         )}
-        {photo ? (
-          <p className="absolute bottom-2 left-2 rounded-full bg-white/90 px-2.5 py-1 text-[11px] text-muted">
-            Source image
-          </p>
-        ) : aiIllustrationsEnabled && drawing ? (
-          <p className="absolute bottom-2 left-2 rounded-full bg-white/90 px-2.5 py-1 text-[11px] text-muted">
-            Illustration, not a photograph
-          </p>
-        ) : null}
-      </div>
-      <div className="flex items-start gap-4">
         <div className="min-w-0 flex-1">
-          <p className="flex items-center gap-2 text-sm text-muted">
-            <img src={iconForCategory(item.category)} alt="" className="h-9 w-9 object-contain" />
-            <span>
-              {featured ? "Cross-category" : String(item.rank).padStart(2, "0")} · {categoryLabel(item.category)}
-            </span>
+          <p className="text-sm text-muted">
+            {featured ? "Cross-category" : String(item.rank).padStart(2, "0")} · {categoryLabel(item.category)}
           </p>
           <h3 className="mt-1 font-display text-2xl leading-tight">{item.title}</h3>
           <div className="mt-3 flex flex-wrap gap-2 text-xs">
             <span className="rounded-full bg-accent-soft px-3 py-1 text-accent-deep">
-              {SUITABILITY_LABELS[item.suitability]}
+              {featured ? SUITABILITY_LABELS.unexpected : affinityChance(item) || SUITABILITY_LABELS[item.suitability]}
             </span>
             <span className="rounded-full border border-line px-3 py-1 text-muted">
               {item.qlooEvidence.length && item.availabilityStatus !== "verified_event"
@@ -356,7 +330,6 @@ export function ResultsView({
   result,
   onReact,
   onRefine,
-  onCategorySearch,
   onReplace,
   onAdjust,
   onPrompt,
@@ -380,24 +353,52 @@ export function ResultsView({
   compareError: string;
   onCompare: () => void;
 }) {
-  const [category, setCategory] = useState("all");
-  const [count, setCount] = useState<5 | 10>(draft.count || 5);
   const [message, setMessage] = useState("");
+  const [foundImages, setFoundImages] = useState<Record<string, string>>({});
+  const askedImages = useRef("");
   const [dismissedPrompt, setDismissedPrompt] = useState(false);
   const [pdfState, setPdfState] = useState<"idle" | "working" | "error">("idle");
   const name = firstName(draft.name);
   const reactions = new Map(draft.feedback.map((item) => [item.title, item.reaction]));
   const completeness = tasteCompleteness(draft);
   const guide = guidanceFor(draft);
-  const categories = useMemo(() => {
-    const selected = normalizeCategories(draft.categories).filter((id) => id !== "surprise");
-    const present = result.recommendations.map((item) => item.category);
-    return ["all", ...new Set([...selected, ...present])];
-  }, [draft.categories, result.recommendations]);
   const scene = useMemo(() => illustrationScene(draft), [draft]);
-  const visible = result.recommendations
-    .filter((item) => category === "all" || item.category === category)
-    .slice(0, count);
+  const visible = result.recommendations.slice(0, 5);
+
+  useEffect(() => {
+    const cards = [...result.recommendations.slice(0, 5), ...(result.unexpected ? [result.unexpected] : [])];
+    const items = cards
+      .filter((item) => !item.qlooEvidence.some((evidence) => evidence.imageUrl && /^https:\/\//i.test(evidence.imageUrl)))
+      .slice(0, 6)
+      .map((item) => ({
+        id: item.id,
+        title: item.title,
+        location: item.location || [draft.city, draft.country].filter(Boolean).join(", "),
+        pageUrl: item.externalSource?.url || "",
+        category: item.category,
+      }));
+    const requestKey = items.map((item) => item.id).join("|");
+    if (!items.length || askedImages.current === requestKey) return;
+    askedImages.current = requestKey;
+    let cancelled = false;
+    void fetch("/api/finding-images", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ items }),
+    })
+      .then(async (response) => {
+        if (!response.ok) return;
+        const payload = (await response.json()) as { images?: Record<string, string> };
+        if (!cancelled && payload.images) {
+          setFoundImages((current) => ({ ...current, ...payload.images }));
+        }
+      })
+      .catch(() => undefined);
+    return () => {
+      cancelled = true;
+      askedImages.current = "";
+    };
+  }, [draft.city, draft.country, result]);
 
   return (
     <div className="mx-auto w-full max-w-[1440px] px-5 pb-20 lg:px-10">
@@ -414,7 +415,7 @@ export function ResultsView({
             disabled={pdfState === "working"}
             onClick={() => {
               setPdfState("working");
-              void downloadFindings(draft, result)
+              void downloadFindings(draft, result, foundImages)
                 .then(() => setPdfState("idle"))
                 .catch(() => setPdfState("error"));
             }}
@@ -461,52 +462,6 @@ export function ResultsView({
           {[...draft.interestChips, draft.city].filter(Boolean).join(" · ")}
         </p>
       ) : null}
-
-      <section className="mt-8 rounded-[28px] border border-line bg-card p-5">
-        <h2 className="font-display text-2xl">How we connected the dots</h2>
-        <div className="mt-4 grid gap-3 sm:grid-cols-3">
-          <div className="rounded-2xl bg-ivory px-4 py-3">
-            <p className="text-xs text-muted">Known interests</p>
-            <p className="mt-2 text-sm leading-6">
-              {draft.interestChips.length
-                ? draft.interestChips.join(" · ")
-                : draft.interestsText.trim() || "Still a light picture"}
-            </p>
-          </div>
-          <div className="rounded-2xl bg-ivory px-4 py-3">
-            <p className="text-xs text-muted">Cultural connections</p>
-            <p className="mt-2 text-sm leading-6">
-              {result.trace.tagsUsed.length || result.trace.resolvedEntities.length
-                ? [...result.trace.tagsUsed.map((tag) => tag.name), ...result.trace.resolvedEntities.map((entity) => entity.name)]
-                    .slice(0, 6)
-                    .join(" · ")
-                : "Qloo didn't return a named connection this pass"}
-            </p>
-          </div>
-          <div className="rounded-2xl bg-ivory px-4 py-3">
-            <p className="text-xs text-muted">Potential discoveries</p>
-            <p className="mt-2 text-sm leading-6">
-              {[...new Set(result.recommendations.map((item) => categoryShortLabel(item.category)))].join(" · ") ||
-                "Nothing held up yet"}
-            </p>
-          </div>
-        </div>
-        <details className="mt-4">
-          <summary className="cursor-pointer text-sm font-medium">Explore the connections</summary>
-          <div className="mt-3 space-y-2 text-sm leading-6 text-muted">
-            {result.trace.insightCalls.length ? (
-              result.trace.insightCalls.map((call, index) => (
-                <p key={`${call.filterType}-${index}`}>
-                  Qloo {prettyType(call.filterType)} affinities
-                  {call.location ? ` near ${call.location}` : ""} from {call.signal}: {call.resultCount} results.
-                </p>
-              ))
-            ) : (
-              <p>No Qloo insights call returned entities for this pass.</p>
-            )}
-          </div>
-        </details>
-      </section>
 
       {result.summary ? (
         <p className="mt-6 rounded-2xl bg-accent-soft px-4 py-3 text-sm leading-6">{result.summary}</p>
@@ -561,48 +516,13 @@ export function ResultsView({
         </div>
       ) : null}
 
-      <div className="mt-8 flex flex-wrap items-center gap-2">
-        {categories.map((id) => (
-          <button
-            key={id}
-            type="button"
-            aria-pressed={category === id}
-            onClick={() => setCategory(id)}
-            className={`min-h-10 rounded-full px-3 text-sm ${
-              category === id ? "chip-on" : "bg-card ring-1 ring-line"
-            }`}
-          >
-            {id === "all" ? "All" : categoryShortLabel(id)}
-          </button>
-        ))}
-        <div className="ml-auto flex rounded-full bg-card p-1 ring-1 ring-line">
-          {[5, 10].map((value) => (
-            <button
-              key={value}
-              type="button"
-              aria-pressed={count === value}
-              onClick={() => setCount(value as 5 | 10)}
-              className={`min-h-9 rounded-full px-3 text-sm ${count === value ? "bg-ivory" : ""}`}
-            >
-              Top {value}
-            </button>
-          ))}
-        </div>
-      </div>
-
       {visible.length === 0 ? (
         <div className="mt-8 rounded-[28px] border border-dashed border-line px-5 py-10 text-center">
-          <p>Nothing in this category held up yet.</p>
-          {category !== "all" ? (
-            <Button className="mt-4" onClick={() => onCategorySearch(category)}>
-              Search {categoryLabel(category)}
-            </Button>
-          ) : (
-            <p className="mt-2 text-sm text-muted">Try refining with one interest or a wider location.</p>
-          )}
+          <p>Nothing held up yet.</p>
+          <p className="mt-2 text-sm text-muted">Try refining with one interest, or look a little further from the city.</p>
         </div>
       ) : (
-        <div className="mt-6 grid items-stretch gap-4 lg:grid-cols-2">
+        <div className="mt-8 grid items-stretch gap-4 lg:grid-cols-3">
           {visible.map((item) => (
             <RecommendationCard
               key={item.id}
@@ -611,6 +531,7 @@ export function ResultsView({
               city={draft.city}
               country={draft.country}
               scene={scene}
+              backupImage={foundImages[item.id]}
               reaction={reactions.get(item.title)}
               saved={draft.savedIdeas.includes(item.title)}
               onReact={(reaction, reason) => onReact(item, reaction, reason)}
@@ -620,7 +541,7 @@ export function ResultsView({
         </div>
       )}
 
-      {category === "all" && result.unexpected ? (
+      {result.unexpected ? (
         <section className="unexpected-wrap mt-8 p-2">
           <p className="flex items-center gap-2 px-3 pt-3 text-sm font-medium">
             <img src="/assets/icons/surprise.png" alt="" className="icon-spark h-11 w-11 object-contain" />
@@ -636,18 +557,13 @@ export function ResultsView({
             country={draft.country}
             featured
             scene={scene}
+            backupImage={foundImages[result.unexpected.id]}
             reaction={reactions.get(result.unexpected.title)}
             saved={draft.savedIdeas.includes(result.unexpected.title)}
             onReact={(reaction, reason) => onReact(result.unexpected as Recommendation, reaction, reason)}
             onSave={onSave ? () => onSave(result.unexpected as Recommendation) : undefined}
           />
         </section>
-      ) : null}
-
-      {count > visible.length && category === "all" && result.limitation?.kind !== "partial" ? (
-        <p className="mt-4 text-sm text-muted">
-          Showing {visible.length} that held up to the constraints.
-        </p>
       ) : null}
 
       <div className="mt-8 flex flex-wrap gap-3">

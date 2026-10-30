@@ -26,10 +26,10 @@ export function pdfFilename(name: string): string {
   return `NotBuyChance_${safe || "Discovery"}_Discovery.pdf`;
 }
 
-function imageUrls(item: Recommendation): string[] {
+function imageUrls(item: Recommendation, extras?: Record<string, string>): string[] {
   const drawn = illustrationFor(item.id);
   const evidence = item.qlooEvidence.map((entry) => entry.imageUrl).filter((url): url is string => Boolean(url));
-  return [drawn, ...evidence].filter((url): url is string => Boolean(url));
+  return [drawn, ...evidence, extras?.[item.id]].filter((url): url is string => Boolean(url));
 }
 
 async function loadJpeg(urls: string[]): Promise<{ data: string; width: number; height: number } | null> {
@@ -102,7 +102,11 @@ function profileLines(draft: DiscoveryDraft): string[] {
   return lines;
 }
 
-export async function buildFindingsPdf(draft: DiscoveryDraft, result: DiscoveryResult): Promise<jsPDF> {
+export async function buildFindingsPdf(
+  draft: DiscoveryDraft,
+  result: DiscoveryResult,
+  extras?: Record<string, string>,
+): Promise<jsPDF> {
   const doc = new jsPDF({ unit: "pt", format: "a4" });
   const pageWidth = doc.internal.pageSize.getWidth();
   const pageHeight = doc.internal.pageSize.getHeight();
@@ -229,7 +233,7 @@ export async function buildFindingsPdf(draft: DiscoveryDraft, result: DiscoveryR
 
   async function writeRecommendation(item: Recommendation) {
     if (room() < 190) newPage();
-    const image = await loadJpeg(imageUrls(item));
+    const image = await loadJpeg(imageUrls(item, extras));
     if (image) {
       const scale = Math.min(220 / image.width, 130 / image.height, 1);
       const drawWidth = image.width * scale;
@@ -266,7 +270,11 @@ export async function buildFindingsPdf(draft: DiscoveryDraft, result: DiscoveryR
   }
 }
 
-export async function downloadFindings(draft: DiscoveryDraft, result: DiscoveryResult) {
-  const doc = await buildFindingsPdf(draft, result);
+export async function downloadFindings(
+  draft: DiscoveryDraft,
+  result: DiscoveryResult,
+  extras?: Record<string, string>,
+) {
+  const doc = await buildFindingsPdf(draft, result, extras);
   doc.save(pdfFilename(draft.name));
 }

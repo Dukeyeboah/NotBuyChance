@@ -14,10 +14,35 @@ const fraunces = Fraunces({
   variable: "--font-fraunces",
 });
 
+const siteUrl = new URL(
+  process.env.NEXT_PUBLIC_SITE_URL ||
+    (process.env.VERCEL_PROJECT_PRODUCTION_URL
+      ? `https://${process.env.VERCEL_PROJECT_PRODUCTION_URL}`
+      : "https://not-buy-chance.vercel.app"),
+);
+
+const title = "NotBuyChance — The perfect gift isn't by chance.";
+const description =
+  "Discover what someone might love. An AI taste agent for thoughtful gifts, experiences, and unexpected discoveries, grounded in Qloo.";
+
 export const metadata: Metadata = {
-  title: "NotBuyChance — The perfect gift isn't by chance.",
-  description:
-    "Discover what someone might love. An AI taste agent for thoughtful gifts, experiences, and unexpected discoveries, grounded in Qloo.",
+  metadataBase: siteUrl,
+  applicationName: "NotBuyChance",
+  title,
+  description,
+  openGraph: {
+    type: "website",
+    locale: "en_US",
+    url: siteUrl,
+    siteName: "NotBuyChance",
+    title,
+    description,
+  },
+  twitter: {
+    card: "summary_large_image",
+    title,
+    description,
+  },
 };
 
 export default function RootLayout({ children }: { children: React.ReactNode }) {

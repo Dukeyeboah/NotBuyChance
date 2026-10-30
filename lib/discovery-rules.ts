@@ -6,7 +6,7 @@ import type {
   ResultLimitation,
 } from "@/types/discovery";
 import { CULTURAL_OPTIONS, normalizeCategories } from "@/lib/qloo/categories";
-import { firstName, tokenize } from "@/lib/text";
+import { firstName, tokenize, unique } from "@/lib/text";
 
 export function preferenceText(draft: Pick<
   DiscoveryDraft,
@@ -17,11 +17,48 @@ export function preferenceText(draft: Pick<
     .join(" ");
 }
 
+const TASTE_WORDS = [
+  "jazz",
+  "neo-soul",
+  "neo soul",
+  "photography",
+  "art",
+  "design",
+  "fashion",
+  "food",
+  "travel",
+  "books",
+  "movies",
+  "gaming",
+  "fitness",
+  "wellness",
+  "nature",
+  "sports",
+  "minimalist",
+  "music",
+  "restaurant",
+];
+
+export function tasteQueries(draft: Pick<
+  DiscoveryDraft,
+  "interestsText" | "interestChips" | "lovedBefore" | "culturalNotes" | "occasionOther"
+>): { entities: string[]; tags: string[] } {
+  const text = [preferenceText(draft), draft.occasionOther].filter(Boolean).join(" ");
+  const names = text.match(/\b[A-Z][a-z]+(?:\s+[A-Z][a-z]+){1,3}\b/g) ?? [];
+  const haystack = text.toLowerCase();
+  const fromText = TASTE_WORDS.filter((word) => haystack.includes(word));
+  const fromChips = draft.interestChips.map((chip) => chip.toLowerCase());
+  return {
+    entities: unique(names).slice(0, 4),
+    tags: unique([...fromText, ...fromChips]).slice(0, 4),
+  };
+}
+
 export function shareGenderWithModel(draft: Pick<DiscoveryDraft, "genderOpenness" | "gender">): boolean {
   return draft.genderOpenness === "demographic" && Boolean(draft.gender);
 }
 
-/** Qloo insights calls in this app do not send a gender or audience filter. */
+/** Qloo insights calls may include an age band. They do not send gender. */
 export function qlooGenderFilterApplied(): false {
   return false;
 }

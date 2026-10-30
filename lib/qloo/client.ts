@@ -159,8 +159,10 @@ export async function getInsights(options: {
   tagIds?: string[];
   locationQuery?: string;
   tagFilter?: string;
+  age?: string;
   take?: number;
 }): Promise<QlooEntity[]> {
+  const hasInterest = Boolean(options.entityIds?.length || options.tagIds?.length);
   const data = (await qlooGet("/v2/insights", {
     "filter.type": options.filterType,
     take: String(options.take ?? 6),
@@ -168,6 +170,7 @@ export async function getInsights(options: {
     "signal.interests.tags": options.tagIds?.slice(0, 4).join(","),
     "filter.location.query": options.locationQuery,
     "filter.tags": options.tagFilter,
+    "signal.demographics.age": hasInterest ? options.age : undefined,
   })) as { results?: { entities?: Record<string, unknown>[] } };
   const rows = data.results?.entities ?? [];
   return rows

@@ -41,7 +41,7 @@ export function emptyDraft(): DiscoveryDraft {
     budgetMin: "",
     budgetMax: "",
     currencyTouched: false,
-    geo: "nearby",
+    geo: "local",
     count: 5,
     feedback: [],
     excludeTitles: [],
@@ -81,6 +81,7 @@ export function hydrateDraft(raw: Partial<DiscoveryDraft>): DiscoveryDraft {
     excludeTitles: Array.isArray(raw.excludeTitles) ? raw.excludeTitles : [],
     interestChips: Array.isArray(raw.interestChips) ? raw.interestChips : [],
     occasions: Array.isArray(raw.occasions) ? raw.occasions : [],
+    geo: raw.geo === "nearby" ? "nearby" : "local",
   };
 }
 
@@ -107,7 +108,7 @@ export function sampleDraft(): DiscoveryDraft {
     budgetMin: "50",
     budgetMax: "200",
     currencyTouched: true,
-    geo: "nearby",
+    geo: "local",
     count: 5,
   };
 }

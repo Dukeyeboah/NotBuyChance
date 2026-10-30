@@ -107,7 +107,7 @@ NotBuyChance helps you find a gift or experience for a specific person, not a pr
 - Accra place coverage can be thin. Nearby mode is allowed to offer ideas that are not in the city, and local-only mode drops places that are clearly somewhere else.
 - Prices are shown only when the source states the amount and the currency. Budget bands are labeled in US dollars, or in the currency that matches the selected country.
 - Finding cards include a web or maps search link so a gift can be looked up. Those are search links, not verified shops. A language model is a poor source of URLs, so the links are built from the title or copied from a real search result. `gpt-4.1-mini` is still the right planner.
-- Illustrations are off. A finding card uses a Qloo image when the entity has one, and a category icon on a soft background otherwise. Those source images are labeled. An AI illustration is not requested.
+- Illustrations are off. A finding card uses a Qloo image when the entity has one. If it does not, the app looks for a matching Wikipedia photo, then a web image, then the photo on a source page. A category icon shows until one of those arrives, and again if they do not. An AI illustration is not requested.
 - Astrology and numerology are not personality assessments.
 - There is no checkout, social graph, or public directory of the people you profile.
 

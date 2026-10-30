@@ -94,6 +94,17 @@ function locationScore(recommendation: Recommendation, input: DiscoveryInput): n
   return 0.25;
 }
 
+export function affinityChance(recommendation: { qlooEvidence: { affinity?: number }[] }): string | undefined {
+  const values = recommendation.qlooEvidence
+    .map((item) => item.affinity)
+    .filter((value): value is number => typeof value === "number");
+  if (!values.length) return undefined;
+  const best = Math.max(...values);
+  if (best >= 0.85) return "A strong chance they'd love this";
+  if (best >= 0.55) return "A good chance this fits";
+  return undefined;
+}
+
 export function scoreRecommendation(
   recommendation: Recommendation,
   input: DiscoveryInput,

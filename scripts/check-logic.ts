@@ -7,8 +7,10 @@ import {
   reduceNumber,
   sunSign,
 } from "../lib/cosmic/calculate";
-import { conflictsWithDislike } from "../lib/agent/rank";
+import { affinityChance, conflictsWithDislike } from "../lib/agent/rank";
+import { qlooAgeSignal } from "../lib/qloo/age";
 import { sampleDraft } from "../lib/draft";
+import { publicHttps, titlesMatch } from "../lib/images/lookup";
 import {
   categoryForEntityType,
   normalizeCategories,
@@ -25,6 +27,7 @@ import {
   selectUnexpected,
   shareGenderWithModel,
   tasteCompleteness,
+  tasteQueries,
 } from "../lib/discovery-rules";
 import { currencyForCountry } from "../lib/countries";
 import { currencyName } from "../lib/format";
@@ -57,6 +60,11 @@ assert.doesNotMatch(cosmic?.reading || "", /entertainment|pseudoscience|just for
 assert.doesNotMatch(cosmic?.reading || "", /she loves luxury/i);
 assert.match(buildCosmicProfile("Maya", "1997-08-01", { birthTime: "08:30", birthPlace: "Accra" })?.reading || "", /Rising sign and houses are not calculated/);
 assert.equal(firstName("Judith Nana Afrakuma Bannerman Quist"), "Judith");
+assert.equal(titlesMatch("Diana Krall", "Diana Krall"), true);
+assert.equal(titlesMatch("The Ghana Jazz Experience", "Ghana"), false);
+assert.equal(publicHttps("//thumb.wikimedia.org/wikipedia/commons/a.jpg"), "https://thumb.wikimedia.org/wikipedia/commons/a.jpg");
+assert.equal(publicHttps("http://example.com/a.jpg"), undefined);
+assert.equal(publicHttps("https://127.0.0.1/a.jpg"), undefined);
 assert.equal(currencyForCountry("Ghana"), "GHS");
 assert.equal(currencyForCountry("China"), "CNY");
 assert.equal(currencyForCountry("United States"), "USD");
@@ -107,6 +115,23 @@ const cultural = preferenceText({
 });
 assert.match(cultural, /Korean food/);
 assert.doesNotMatch(cultural, /West African/);
+assert.deepEqual(
+  tasteQueries({
+    interestsText: "She loves Erykah Badu and quiet jazz bars.",
+    interestChips: ["Music"],
+    lovedBefore: "A photography book.",
+    culturalNotes: "enjoys Korean food",
+    occasionOther: "",
+  }).tags.slice(0, 3),
+  ["jazz", "photography", "food"],
+);
+assert.equal(qlooAgeSignal({ age: 29 }), "35_and_younger");
+assert.equal(qlooAgeSignal({ birthDate: "1997-08-01" }), "35_and_younger");
+assert.equal(qlooAgeSignal({ age: 40 }), "36_to_55");
+assert.equal(qlooAgeSignal({ ageRange: "65+" }), "55_and_older");
+assert.equal(qlooAgeSignal({}), undefined);
+assert.equal(affinityChance({ qlooEvidence: [{ affinity: 0.99 }] }), "A strong chance they'd love this");
+assert.equal(affinityChance({ qlooEvidence: [{}] }), undefined);
 
 const localWiden = broadenJobs({
   geo: "local",
