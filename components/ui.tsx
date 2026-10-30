@@ -23,15 +23,20 @@ export function Button({
 export function Field({
   label,
   hint,
+  aside,
   children,
 }: {
   label: string;
   hint?: string;
+  aside?: string;
   children: ReactNode;
 }) {
   return (
     <label className="block">
-      <span className="text-sm font-medium">{label}</span>
+      <span className="text-sm font-medium">
+        {label}
+        {aside ? <span className="ml-1.5 font-normal italic text-muted">({aside})</span> : null}
+      </span>
       {hint ? <span className="mt-1 block text-sm text-muted">{hint}</span> : null}
       <div className="mt-2">{children}</div>
     </label>
@@ -62,6 +67,7 @@ export function Choice({
   mark,
   tone,
   showCheck = false,
+  className = "",
   onClick,
 }: {
   selected: boolean;
@@ -70,6 +76,7 @@ export function Choice({
   mark?: ReactNode;
   tone?: string;
   showCheck?: boolean;
+  className?: string;
   onClick: () => void;
 }) {
   return (
@@ -79,7 +86,7 @@ export function Choice({
       onClick={onClick}
       className={`relative min-h-12 rounded-2xl border px-4 py-3 text-left transition duration-200 hover:-translate-y-0.5 ${showCheck ? "pr-8" : ""} ${tone || "bg-card"} ${
         selected ? "choice-selected border-accent shadow-[0_0_0_2px_var(--accent)]" : "border-line hover:border-accent/40"
-      }`}
+      } ${className}`}
     >
       {showCheck && selected ? (
         <span className="absolute right-2.5 top-2.5 flex h-5 w-5 items-center justify-center rounded-full bg-accent text-[11px] text-white" aria-hidden>

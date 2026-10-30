@@ -6,7 +6,7 @@ import type {
   ResultLimitation,
 } from "@/types/discovery";
 import { CULTURAL_OPTIONS, normalizeCategories } from "@/lib/qloo/categories";
-import { tokenize } from "@/lib/text";
+import { firstName, tokenize } from "@/lib/text";
 
 export function preferenceText(draft: Pick<
   DiscoveryDraft,
@@ -71,7 +71,7 @@ export function guidanceFor(draft: Pick<
   DiscoveryDraft,
   "name" | "interestsText" | "interestChips" | "culturalLabels" | "culturalNotes"
 >): { question?: string; prompts: string[] } {
-  const name = draft.name.trim() || "them";
+  const name = firstName(draft.name);
   const tokens = tokenize(`${draft.interestsText} ${draft.interestChips.join(" ")}`);
   if (tokens.length < 2) {
     return {

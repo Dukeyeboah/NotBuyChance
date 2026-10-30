@@ -434,6 +434,8 @@ function WhoStep({
   update: (patch: Partial<DiscoveryDraft>) => void;
   setCountry: (country: string) => void;
 }) {
+  const [ageEntry, setAgeEntry] = useState<"date" | "age">(draft.age.trim() && !draft.birthDate ? "age" : "date");
+  const hasExactAge = Boolean(draft.birthDate || draft.age.trim());
   return (
     <div className="space-y-6">
       <div>
@@ -445,8 +447,8 @@ function WhoStep({
         <Choice selected={!draft.forSelf} title="Someone else" onClick={() => update({ forSelf: false, relationship: draft.relationship === "myself" ? "" : draft.relationship })} />
         <Choice selected={draft.forSelf} title="Myself" onClick={() => update({ forSelf: true, relationship: "myself" })} />
       </div>
-      <Field label="Name" hint="A first name or nickname is enough.">
-        <TextInput value={draft.name} onChange={(event) => update({ name: event.target.value })} placeholder="Maya" autoComplete="off" />
+      <Field label="Name">
+        <TextInput value={draft.name} onChange={(event) => update({ name: event.target.value })} placeholder="Maya Owusu" autoComplete="off" />
       </Field>
       {draft.forSelf ? null : (
         <fieldset>
@@ -460,8 +462,8 @@ function WhoStep({
           </div>
         </fieldset>
       )}
-      <div className="grid gap-4 sm:grid-cols-2">
-        <Field label="Country" hint="Optional. Used for nearby ideas.">
+      <div className="grid grid-cols-2 items-end gap-4">
+        <Field label="Country" aside="Optional. Used for nearby ideas.">
           <TextInput list="countries" value={draft.country} onChange={(event) => setCountry(event.target.value)} placeholder="Ghana" />
           <datalist id="countries">
             {COUNTRIES.map((country) => (
@@ -473,40 +475,76 @@ function WhoStep({
           <TextInput value={draft.city} onChange={(event) => update({ city: event.target.value })} placeholder="Accra" />
         </Field>
       </div>
-      <div className="grid gap-4 sm:grid-cols-2">
-        <Field label="Date of birth" hint="Optional. Needed for a sun sign.">
-          <TextInput type="date" value={draft.birthDate} onChange={(event) => update({ birthDate: event.target.value })} />
-        </Field>
-        <Field label="Or an approximate age">
-          <TextInput inputMode="numeric" value={draft.age} onChange={(event) => update({ age: event.target.value })} placeholder="29" />
-        </Field>
-      </div>
-      <div className="grid gap-4 sm:grid-cols-2">
-        <Field label="Birth time" hint="Optional. Saved with the profile. A rising sign is not calculated from it.">
-          <TextInput type="time" value={draft.birthTime} onChange={(event) => update({ birthTime: event.target.value })} />
-        </Field>
-        <Field label="Birthplace" hint="Optional. City or town, if you know it.">
-          <TextInput value={draft.birthPlace} onChange={(event) => update({ birthPlace: event.target.value })} placeholder="Accra" />
-        </Field>
-      </div>
-      <Field label="Age range" hint="Skip this if you don't know.">
-        <div className="flex flex-wrap gap-2">
-          {AGE_RANGES.map((range) => (
-            <button
-              key={range}
-              type="button"
-              aria-pressed={draft.ageRange === range}
-              onClick={() => update({ ageRange: draft.ageRange === range ? "" : range })}
-              className={`min-h-10 rounded-full px-3 text-sm ${draft.ageRange === range ? "chip-on" : "bg-card ring-1 ring-line"}`}
-            >
-              {range}
-            </button>
-          ))}
+      <div>
+        <div className="flex flex-wrap items-baseline justify-between gap-x-4 gap-y-2">
+          <span className="text-sm font-medium">
+            {ageEntry === "date" ? "Date of birth" : "Age"}
+            {ageEntry === "date" ? (
+              <span className="ml-1.5 font-normal italic text-muted">(used for more accurate personality reading)</span>
+            ) : null}
+          </span>
+          <div className="inline-flex rounded-full bg-card p-1 ring-1 ring-line" role="group" aria-label="Age entry">
+            {(
+              [
+                ["date", "Date of birth"],
+                ["age", "Age"],
+              ] as const
+            ).map(([id, label]) => (
+              <button
+                key={id}
+                type="button"
+                aria-pressed={ageEntry === id}
+                onClick={() => {
+                  setAgeEntry(id);
+                  update(id === "date" ? { age: "" } : { birthDate: "" });
+                }}
+                className={`min-h-9 rounded-full px-3 text-sm ${ageEntry === id ? "chip-on" : "text-muted"}`}
+              >
+                {label}
+              </button>
+            ))}
+          </div>
         </div>
+        <div className="mt-2">
+          {ageEntry === "date" ? (
+            <TextInput
+              type="date"
+              value={draft.birthDate}
+              onChange={(event) => update({ birthDate: event.target.value, age: "", ageRange: event.target.value ? "" : draft.ageRange })}
+            />
+          ) : (
+            <TextInput
+              inputMode="numeric"
+              value={draft.age}
+              onChange={(event) => update({ age: event.target.value, birthDate: "", ageRange: event.target.value.trim() ? "" : draft.ageRange })}
+              placeholder="29"
+            />
+          )}
+        </div>
+      </div>
+      <Field label="Birthplace" aside="optional">
+        <TextInput value={draft.birthPlace} onChange={(event) => update({ birthPlace: event.target.value })} placeholder="Accra" />
       </Field>
+      {hasExactAge ? null : (
+        <Field label="Age range">
+          <div className="flex flex-wrap gap-2">
+            {AGE_RANGES.map((range) => (
+              <button
+                key={range}
+                type="button"
+                aria-pressed={draft.ageRange === range}
+                onClick={() => update({ ageRange: draft.ageRange === range ? "" : range })}
+                className={`min-h-10 rounded-full px-3 text-sm ${draft.ageRange === range ? "chip-on" : "bg-card ring-1 ring-line"}`}
+              >
+                {range}
+              </button>
+            ))}
+          </div>
+        </Field>
+      )}
       <fieldset>
         <legend className="text-sm font-medium">Gender, if you want to share it</legend>
-        <div className="mt-3 grid gap-3">
+        <div className="mt-3 flex flex-wrap gap-2 lg:flex-nowrap">
           {[
             ["female", "Female"],
             ["male", "Male"],
@@ -514,7 +552,13 @@ function WhoStep({
             ["self_describe", "Prefer to self-describe"],
             ["unspecified", "Prefer not to say"],
           ].map(([id, label]) => (
-            <Choice key={id} selected={draft.gender === id} title={label} onClick={() => update({ gender: id as DiscoveryDraft["gender"] })} />
+            <Choice
+              key={id}
+              className="w-auto shrink-0 whitespace-nowrap px-3 py-2"
+              selected={draft.gender === id}
+              title={label}
+              onClick={() => update({ gender: id as DiscoveryDraft["gender"] })}
+            />
           ))}
         </div>
         {draft.gender === "self_describe" ? (
@@ -704,7 +748,7 @@ function StyleStep({
   update: (patch: Partial<DiscoveryDraft>) => void;
   cosmic: CosmicProfile | null;
 }) {
-  const name = draft.name.trim() || "them";
+  const name = firstName(draft.name);
   const facts = [
     cosmic?.sunSign ? `Sun sign: ${cosmic.sunSign}` : "",
     cosmic?.lifePath ? `Life path number: ${cosmic.lifePath}` : "",
