@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useLayoutEffect, useMemo, useRef, useState } from "react";
 import { useSearchParams } from "next/navigation";
 import type { CosmicProfile, DiscoveryDraft, DiscoveryResult, FeedbackReason, Reaction, Recommendation } from "@/types/discovery";
 import { emptyDraft, sampleDraft } from "@/lib/draft";
@@ -135,6 +135,26 @@ export function DiscoverFlow() {
     return () => window.clearTimeout(timer);
   }, [loading]);
 
+  const showingResults = Boolean(result);
+  const rerunAfterNot = useRef<{ draft: DiscoveryDraft; summary: string } | null>(null);
+  useLayoutEffect(() => {
+    const previous = window.history.scrollRestoration;
+    window.history.scrollRestoration = "manual";
+    const jump = () => {
+      window.scrollTo(0, 0);
+      document.documentElement.scrollTop = 0;
+      document.body.scrollTop = 0;
+    };
+    jump();
+    const frame = window.requestAnimationFrame(jump);
+    const timer = window.setTimeout(jump, 60);
+    return () => {
+      window.cancelAnimationFrame(frame);
+      window.clearTimeout(timer);
+      window.history.scrollRestoration = previous;
+    };
+  }, [step, loading, showingResults]);
+
   const cosmic = useMemo(
     () =>
       buildCosmicProfile(draft.name || "They", draft.birthDate || undefined, {
@@ -177,6 +197,7 @@ export function DiscoverFlow() {
     const message = validate(step);
     setError(message);
     if (message) return;
+    if (document.activeElement instanceof HTMLElement) document.activeElement.blur();
     setStep((current) => Math.min(current + 1, STEPS.length - 1));
   }
 
@@ -232,9 +253,10 @@ export function DiscoverFlow() {
 
   function reactTo(item: Recommendation, reaction: Reaction, reason?: FeedbackReason) {
     const existing = draft.feedback.find((entry) => entry.title === item.title);
-    if (reaction === "maybe" && existing?.reaction === "maybe") {
+    if ((reaction === "maybe" && existing?.reaction === "maybe") || (reaction === "not" && existing?.reaction === "not" && !reason)) {
       const cleared: DiscoveryDraft = {
         ...draft,
+        excludeTitles: reaction === "not" ? draft.excludeTitles.filter((title) => title !== item.title) : draft.excludeTitles,
         feedback: draft.feedback.filter((entry) => entry.title !== item.title),
       };
       setDraft(cleared);
@@ -266,17 +288,14 @@ export function DiscoverFlow() {
     setDraft(nextDraft);
     saveFeedback(nextDraft.personId, feedback, nextDraft);
     if (reaction === "not" && (reason === "expensive" || reason === "far")) {
-      void discover(nextDraft, undefined, false, applied.summary);
-      return;
+      rerunAfterNot.current = { draft: nextDraft, summary: applied.summary };
     }
-    if (reaction === "not" && result) {
-      const recommendations = result.recommendations
-        .filter((entry) => entry.id !== item.id)
-        .map((entry, index) => ({ ...entry, rank: index + 1 }));
-      const unexpected = result.unexpected?.id === item.id ? undefined : result.unexpected;
-      setResult({ ...result, recommendations, unexpected });
-      setNotice(applied.summary);
-    }
+  }
+
+  function finishNotForThem() {
+    const pending = rerunAfterNot.current;
+    rerunAfterNot.current = null;
+    if (pending) void discover(pending.draft, undefined, false, pending.summary);
   }
 
   function saveIdea(item: Recommendation) {
@@ -353,6 +372,7 @@ export function DiscoverFlow() {
           draft={draft}
           result={result}
           onReact={reactTo}
+          onNotSettled={finishNotForThem}
           onRefine={(message) => discover(draft, message)}
           onCategorySearch={(categoryId) => discover({ ...draft, categories: [categoryId] }, undefined, true)}
           onReplace={() =>
@@ -438,7 +458,14 @@ export function DiscoverFlow() {
       {error ? <p className="mt-4 text-sm text-accent-deep">{error}</p> : null}
 
       <div className="mt-8 flex items-center justify-between gap-3">
-        <Button variant="ghost" onClick={() => setStep((current) => Math.max(0, current - 1))} disabled={step === 0}>
+        <Button
+          variant="ghost"
+          onClick={() => {
+            if (document.activeElement instanceof HTMLElement) document.activeElement.blur();
+            setStep((current) => Math.max(0, current - 1));
+          }}
+          disabled={step === 0}
+        >
           Back
         </Button>
         {step < 5 ? (

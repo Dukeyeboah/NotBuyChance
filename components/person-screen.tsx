@@ -49,9 +49,10 @@ export function PersonScreen() {
   function reactTo(item: Recommendation, reaction: Reaction, _reason?: FeedbackReason) {
     const current = person!.draft;
     const existing = current.feedback.find((entry) => entry.title === item.title);
-    if (reaction === "maybe" && existing?.reaction === "maybe") {
+    if ((reaction === "maybe" && existing?.reaction === "maybe") || (reaction === "not" && existing?.reaction === "not" && !_reason)) {
       const draft = {
         ...current,
+        excludeTitles: reaction === "not" ? current.excludeTitles.filter((title) => title !== item.title) : current.excludeTitles,
         feedback: current.feedback.filter((entry) => entry.title !== item.title),
       };
       setPerson({ ...person!, draft });
@@ -80,15 +81,6 @@ export function PersonScreen() {
           : current.excludeTitles,
     };
     const next = { ...person!, draft };
-    if (reaction === "not" && latest) {
-      next.sessions = [
-        {
-          ...latest,
-          recommendations: latest.recommendations.filter((entry) => entry.id !== item.id),
-        },
-        ...person!.sessions.slice(1),
-      ];
-    }
     setPerson(next);
     saveFeedback(person!.id, feedback, draft);
   }

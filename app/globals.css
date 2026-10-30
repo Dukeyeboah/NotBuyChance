@@ -27,6 +27,10 @@
   color-scheme: light;
 }
 
+html {
+  overflow-anchor: none;
+}
+
 html[data-theme="cosmic"] {
   --accent: #7c3aed;
   --accent-deep: #6d28d9;

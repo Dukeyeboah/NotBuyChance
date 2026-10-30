@@ -86,6 +86,7 @@ function RecommendationCard({
   backupImage,
   onReact,
   onSave,
+  onNotSettled,
 }: {
   item: Recommendation;
   name: string;
@@ -98,8 +99,9 @@ function RecommendationCard({
   backupImage?: string;
   onReact: (reaction: Reaction, reason?: FeedbackReason) => void;
   onSave?: () => void;
+  onNotSettled?: () => void;
 }) {
-  const [asking, setAsking] = useState(false);
+  const [notStep, setNotStep] = useState<"choose" | "saved" | null>(null);
   const [drawing, setDrawing] = useState<string | undefined>(
     aiIllustrationsEnabled ? illustrationFor(item.id) : undefined,
   );
@@ -259,10 +261,7 @@ function RecommendationCard({
         <button
           type="button"
           aria-pressed={reaction === "maybe"}
-          onClick={() => {
-            setAsking(false);
-            onReact("maybe");
-          }}
+          onClick={() => onReact("maybe")}
           className="react-maybe min-h-11 rounded-full px-4 text-sm"
         >
           {reaction === "maybe" ? "Maybe · noted" : "Maybe"}
@@ -270,10 +269,16 @@ function RecommendationCard({
         <button
           type="button"
           aria-pressed={reaction === "not"}
-          onClick={() => setAsking(true)}
+          onClick={() => {
+            if (reaction === "not") {
+              onReact("not");
+              return;
+            }
+            setNotStep("choose");
+          }}
           className="react-skip min-h-11 rounded-full px-4 text-sm"
         >
-          Not for them
+          {reaction === "not" ? "Not for them · noted" : "Not for them"}
         </button>
         {onSave ? (
           <button
@@ -296,23 +301,64 @@ function RecommendationCard({
           </button>
         ) : null}
       </div>
-      {asking ? (
-        <div className="mt-4">
-          <p className="text-sm font-medium">What wasn't quite right?</p>
-          <div className="mt-2 flex flex-wrap gap-2">
-            {FEEDBACK_REASONS.map(([id, label]) => (
-              <button
-                key={id}
-                type="button"
-                onClick={() => {
-                  setAsking(false);
-                  onReact("not", id);
-                }}
-                className="min-h-10 rounded-full border border-line bg-card px-3 text-sm"
-              >
-                {label}
-              </button>
-            ))}
+      {notStep ? (
+        <div
+          className="fixed inset-0 z-50 flex items-center justify-center bg-ink/40 px-5"
+          onClick={() => {
+            if (notStep === "saved") onNotSettled?.();
+            setNotStep(null);
+          }}
+        >
+          <div
+            role="dialog"
+            aria-modal="true"
+            aria-labelledby={`not-title-${item.id}`}
+            className="w-full max-w-md rounded-[28px] bg-card p-6 shadow-[0_24px_60px_rgba(31,41,55,0.18)]"
+            onClick={(event) => event.stopPropagation()}
+          >
+            {notStep === "choose" ? (
+              <>
+                <h2 id={`not-title-${item.id}`} className="font-display text-3xl">
+                  Not for {name}?
+                </h2>
+                <p className="mt-3 leading-7 text-muted">
+                  Pick the closest reason. This is saved on {name === "them" ? "their" : `${name}'s`} profile, and future searches for {name} will leave this idea out.
+                </p>
+                <div className="mt-5 flex flex-wrap gap-2">
+                  {FEEDBACK_REASONS.map(([id, label]) => (
+                    <button
+                      key={id}
+                      type="button"
+                      onClick={() => {
+                        onReact("not", id);
+                        setNotStep("saved");
+                      }}
+                      className="min-h-10 rounded-full border border-line bg-card px-3 text-sm"
+                    >
+                      {label}
+                    </button>
+                  ))}
+                </div>
+              </>
+            ) : (
+              <>
+                <h2 id={`not-title-${item.id}`} className="font-display text-3xl">
+                  Saved for {name}
+                </h2>
+                <p className="mt-3 leading-7 text-muted">
+                  This is saved on {name === "them" ? "their" : `${name}'s`} profile. The next search for {name} will use it, so this idea stays out of future suggestions.
+                </p>
+                <Button
+                  className="mt-5"
+                  onClick={() => {
+                    setNotStep(null);
+                    onNotSettled?.();
+                  }}
+                >
+                  Done
+                </Button>
+              </>
+            )}
           </div>
         </div>
       ) : null}
@@ -329,6 +375,7 @@ export function ResultsView({
   onAdjust,
   onPrompt,
   onSave,
+  onNotSettled,
   comparing,
   basic,
   compareError,
@@ -343,6 +390,7 @@ export function ResultsView({
   onAdjust?: (action: "nearby" | "another_category" | "broader") => void;
   onPrompt?: (prompt: string) => void;
   onSave?: (item: Recommendation) => void;
+  onNotSettled?: () => void;
   comparing: boolean;
   basic: Recommendation[] | null;
   compareError: string;
@@ -531,6 +579,7 @@ export function ResultsView({
               saved={draft.savedIdeas.includes(item.title)}
               onReact={(reaction, reason) => onReact(item, reaction, reason)}
               onSave={onSave ? () => onSave(item) : undefined}
+              onNotSettled={onNotSettled}
             />
           ))}
         </div>
@@ -557,6 +606,7 @@ export function ResultsView({
             saved={draft.savedIdeas.includes(result.unexpected.title)}
             onReact={(reaction, reason) => onReact(result.unexpected as Recommendation, reaction, reason)}
             onSave={onSave ? () => onSave(result.unexpected as Recommendation) : undefined}
+            onNotSettled={onNotSettled}
           />
         </section>
       ) : null}

@@ -3,6 +3,7 @@
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { BrandMark } from "@/components/brand-mark";
+import { utilityIcons } from "@/lib/icons";
 
 export function SiteHeader() {
   const path = usePathname();
@@ -21,7 +22,8 @@ export function SiteHeader() {
             How it works
           </a>
         ) : null}
-        <Link href="/dashboard" className="inline-flex min-h-11 items-center px-3">
+        <Link href="/dashboard" className="inline-flex min-h-11 items-center gap-2 rounded-full border border-line bg-card px-4 font-medium">
+          <img src={utilityIcons.favorites} alt="" className="h-5 w-5 object-contain" />
           Saved
         </Link>
         {path !== "/discover" ? (
