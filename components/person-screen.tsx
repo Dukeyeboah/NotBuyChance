@@ -5,7 +5,7 @@ import { useEffect, useState } from "react";
 import { useParams } from "next/navigation";
 import type { DiscoveryResult, FeedbackReason, Reaction, Recommendation } from "@/types/discovery";
 import { formatDay } from "@/lib/format";
-import { getPerson, saveFeedback, setFeaturedHomepagePreview, type StoredPerson } from "@/lib/storage";
+import { getPerson, saveFeedback, setFeaturedHomepagePreview, updateDraft, type StoredPerson } from "@/lib/storage";
 import { DiscoveryPreviewCard } from "@/components/discovery-preview-card";
 import { previewFromPerson } from "@/lib/preview";
 import { ResultsView } from "@/components/results-view";
@@ -47,6 +47,17 @@ export function PersonScreen() {
     : null;
 
   function reactTo(item: Recommendation, reaction: Reaction, _reason?: FeedbackReason) {
+    const current = person!.draft;
+    const existing = current.feedback.find((entry) => entry.title === item.title);
+    if (reaction === "maybe" && existing?.reaction === "maybe") {
+      const draft = {
+        ...current,
+        feedback: current.feedback.filter((entry) => entry.title !== item.title),
+      };
+      setPerson({ ...person!, draft });
+      updateDraft(person!.id, draft);
+      return;
+    }
     const feedback = {
       id: crypto.randomUUID(),
       title: item.title,
@@ -55,12 +66,18 @@ export function PersonScreen() {
       createdAt: new Date().toISOString(),
     };
     const draft = {
-      ...person!.draft,
-      feedback: [...person!.draft.feedback.filter((entry) => entry.title !== item.title), feedback],
+      ...current,
+      savedIdeas:
+        reaction === "love"
+          ? current.savedIdeas.includes(item.title)
+            ? current.savedIdeas
+            : [...current.savedIdeas, item.title]
+          : current.savedIdeas.filter((title) => title !== item.title),
+      feedback: [...current.feedback.filter((entry) => entry.title !== item.title), feedback],
       excludeTitles:
-        reaction === "not" && !person!.draft.excludeTitles.includes(item.title)
-          ? [...person!.draft.excludeTitles, item.title]
-          : person!.draft.excludeTitles,
+        reaction === "not" && !current.excludeTitles.includes(item.title)
+          ? [...current.excludeTitles, item.title]
+          : current.excludeTitles,
     };
     const next = { ...person!, draft };
     if (reaction === "not" && latest) {
@@ -74,6 +91,30 @@ export function PersonScreen() {
     }
     setPerson(next);
     saveFeedback(person!.id, feedback, draft);
+  }
+
+  function saveIdea(item: Recommendation) {
+    const current = person!.draft;
+    const saving = !current.savedIdeas.includes(item.title);
+    const feedback = {
+      id: crypto.randomUUID(),
+      title: item.title,
+      reaction: "love" as const,
+      category: item.category,
+      createdAt: new Date().toISOString(),
+    };
+    const draft = {
+      ...current,
+      savedIdeas: saving
+        ? [...current.savedIdeas, item.title]
+        : current.savedIdeas.filter((title) => title !== item.title),
+      feedback: saving
+        ? [...current.feedback.filter((entry) => entry.title !== item.title), feedback]
+        : current.feedback.filter((entry) => !(entry.title === item.title && entry.reaction === "love")),
+    };
+    setPerson({ ...person!, draft });
+    if (saving) saveFeedback(person!.id, feedback, draft);
+    else updateDraft(person!.id, draft);
   }
 
   return (
@@ -109,6 +150,7 @@ export function PersonScreen() {
             draft={person.draft}
             result={result}
             onReact={reactTo}
+            onSave={saveIdea}
             onRefine={() => {
               window.location.href = `/discover?person=${person.id}`;
             }}

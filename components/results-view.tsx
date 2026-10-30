@@ -256,30 +256,25 @@ function RecommendationCard({
       </details>
 
       <div className="mt-auto flex flex-wrap gap-2 pt-5">
-        {(
-          [
-            ["love", "Love this", "react-love"],
-            ["maybe", "Maybe", "react-maybe"],
-            ["not", "Not for them", "react-skip"],
-          ] as const
-        ).map(([value, label, tone]) => (
-          <button
-            key={value}
-            type="button"
-            aria-pressed={reaction === value}
-            onClick={() => {
-              if (value === "not") {
-                setAsking(true);
-                return;
-              }
-              setAsking(false);
-              onReact(value);
-            }}
-            className={`min-h-11 rounded-full px-4 text-sm ${tone}`}
-          >
-            {label}
-          </button>
-        ))}
+        <button
+          type="button"
+          aria-pressed={reaction === "maybe"}
+          onClick={() => {
+            setAsking(false);
+            onReact("maybe");
+          }}
+          className="react-maybe min-h-11 rounded-full px-4 text-sm"
+        >
+          {reaction === "maybe" ? "Maybe · noted" : "Maybe"}
+        </button>
+        <button
+          type="button"
+          aria-pressed={reaction === "not"}
+          onClick={() => setAsking(true)}
+          className="react-skip min-h-11 rounded-full px-4 text-sm"
+        >
+          Not for them
+        </button>
         {onSave ? (
           <button
             type="button"

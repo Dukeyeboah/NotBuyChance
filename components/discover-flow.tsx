@@ -231,6 +231,16 @@ export function DiscoverFlow() {
   }
 
   function reactTo(item: Recommendation, reaction: Reaction, reason?: FeedbackReason) {
+    const existing = draft.feedback.find((entry) => entry.title === item.title);
+    if (reaction === "maybe" && existing?.reaction === "maybe") {
+      const cleared: DiscoveryDraft = {
+        ...draft,
+        feedback: draft.feedback.filter((entry) => entry.title !== item.title),
+      };
+      setDraft(cleared);
+      updateDraft(cleared.personId, cleared);
+      return;
+    }
     const applied =
       reaction === "not"
         ? applyNotForThem(draft, item, reason || "other")
@@ -245,7 +255,13 @@ export function DiscoverFlow() {
     };
     const nextDraft: DiscoveryDraft = {
       ...applied.draft,
-      feedback: [...draft.feedback.filter((entry) => entry.title !== item.title), feedback],
+      savedIdeas:
+        reaction === "love"
+          ? applied.draft.savedIdeas.includes(item.title)
+            ? applied.draft.savedIdeas
+            : [...applied.draft.savedIdeas, item.title]
+          : applied.draft.savedIdeas.filter((title) => title !== item.title),
+      feedback: [...applied.draft.feedback.filter((entry) => entry.title !== item.title), feedback],
     };
     setDraft(nextDraft);
     saveFeedback(nextDraft.personId, feedback, nextDraft);
@@ -264,13 +280,27 @@ export function DiscoverFlow() {
   }
 
   function saveIdea(item: Recommendation) {
-    const savedIdeas = draft.savedIdeas.includes(item.title)
-      ? draft.savedIdeas.filter((title) => title !== item.title)
-      : [...draft.savedIdeas, item.title];
-    const nextDraft = { ...draft, savedIdeas };
+    const saving = !draft.savedIdeas.includes(item.title);
+    const feedback = {
+      id: crypto.randomUUID(),
+      title: item.title,
+      reaction: "love" as const,
+      category: item.category,
+      createdAt: new Date().toISOString(),
+    };
+    const nextDraft: DiscoveryDraft = {
+      ...draft,
+      savedIdeas: saving
+        ? [...draft.savedIdeas, item.title]
+        : draft.savedIdeas.filter((title) => title !== item.title),
+      feedback: saving
+        ? [...draft.feedback.filter((entry) => entry.title !== item.title), feedback]
+        : draft.feedback.filter((entry) => !(entry.title === item.title && entry.reaction === "love")),
+    };
     setDraft(nextDraft);
-    updateDraft(nextDraft.personId, nextDraft);
-    setNotice(savedIdeas.includes(item.title) ? "Saved with this profile." : "Removed from saved ideas.");
+    if (saving) saveFeedback(nextDraft.personId, feedback, nextDraft);
+    else updateDraft(nextDraft.personId, nextDraft);
+    setNotice(saving ? "Saved with this profile." : "Removed from saved ideas.");
   }
 
   async function compare() {
@@ -747,7 +777,6 @@ function StyleStep({
   cosmic: CosmicProfile | null;
 }) {
   const name = firstName(draft.name);
-  const themes = cosmic?.themes ?? [];
   const showJoin = draft.mode !== "taste" && draft.cosmicFeedback !== "not_really";
   return (
     <div className="space-y-6">
@@ -799,12 +828,11 @@ function StyleStep({
       {cosmic ? (
         <div className="rounded-[28px] border border-line bg-card p-5">
           <p className="text-sm text-muted">A little more about {name}</p>
-          <p className="mt-3 leading-7">
-            {themes.length
-              ? `Based on ${name}'s astrological and numerological profile, themes of ${themes.slice(0, 3).join(", ")} come through. These interpretations suggest directions we could explore when choosing something special.`
-              : `${name}'s profile can grow from here.`}
-          </p>
-          {themes.length ? <p className="mt-4 text-sm">Associated themes: {themes.join(", ")}</p> : null}
+          <div className="mt-3 space-y-3 leading-7">
+            {cosmic.reading.split(/\n\n+/).map((paragraph) => (
+              <p key={paragraph.slice(0, 48)}>{paragraph}</p>
+            ))}
+          </div>
           {draft.mode === "taste" ? (
             <p className="mt-3 text-sm text-muted">Taste mode follows known interests. Cosmic and Fusion can draw on this profile.</p>
           ) : null}

@@ -51,6 +51,21 @@ const NUMBER_COLOR: Record<number, string> = {
   33: "A 33 mixes care and creativity. Hosting, teaching, and making something generous for other people.",
 };
 
+const SIGN_ENJOY: Record<string, string> = {
+  Aries: "They would enjoy something with a spark they can start themselves, more a first than a safe repeat.",
+  Taurus: "They would enjoy something for the senses, more texture, food, or craft than a novelty that disappears.",
+  Gemini: "They would enjoy something with variety and a story worth telling, more a clever detour than one note.",
+  Cancer: "They would enjoy something that feels looked after, more a cozy table or a keepsake than a loud spectacle.",
+  Leo: "They would enjoy something with warmth and a little ceremony, more a moment they can dress up than a plain errand.",
+  Virgo: "They would enjoy something useful and beautifully made, more care in the details than a grand gesture with nothing behind it.",
+  Libra: "They would enjoy something shared and lovely, more a plan with someone they like than a solo trophy.",
+  Scorpio: "They would enjoy something with depth, more meaning and a little mystery than a surface-level treat.",
+  Sagittarius: "They would enjoy something with a horizon, more an idea or an adventure they can tell later than a routine gift.",
+  Capricorn: "They would enjoy something that lasts, more quality and a plan that holds up than a fleeting trend.",
+  Aquarius: "They would enjoy something with an original angle, more an unexpected idea than the obvious choice.",
+  Pisces: "They would enjoy something they can sink into, more music, mood, or imagination than a purely practical item.",
+};
+
 const SUN_THEMES: Record<string, string[]> = {
   Aries: ["initiative", "bold experiences", "new beginnings"],
   Taurus: ["comfort", "the senses", "craft"],
@@ -205,30 +220,39 @@ export function buildCosmicProfile(
   ].filter((theme, index, all) => all.indexOf(theme) === index);
 
   const first = safeName.split(/\s+/)[0] || "They";
-  const themePhrase = themes.slice(0, 3).join(", ");
-  const opening = themePhrase
-    ? `Based on ${first}'s astrological and numerological profile, themes of ${themePhrase} come through. These interpretations suggest directions we could explore when choosing something special.`
-    : `${first}'s profile can grow from here. A birth date adds a sun sign, a life path, and a birthday number.`;
-  const color = [
-    sign ? SIGN_COLOR[sign] : "",
-    lifePath ? `Life path ${lifePath}. ${NUMBER_COLOR[lifePath] ?? ""}` : "",
-    birthday ? `Birthday number ${birthday}. ${NUMBER_COLOR[birthday] ?? ""}` : "",
-    expression && expression !== lifePath && expression !== birthday
-      ? `Expression number ${expression}. ${NUMBER_COLOR[expression] ?? ""}`
-      : "",
-  ]
-    .filter(Boolean)
-    .join(" ");
+  const paragraphs: string[] = [];
+  if (sign) {
+    paragraphs.push(
+      `${first} is likely to be someone who responds to a ${sign} sun. ${SIGN_COLOR[sign] ?? ""} ${SIGN_ENJOY[sign] ?? ""}`.replace(/\s+/g, " ").trim(),
+    );
+  } else if (expression) {
+    paragraphs.push(
+      `${first}'s picture starts with the name, which carries an expression number of ${expression}. ${NUMBER_COLOR[expression] ?? ""} A birth date would add the sun sign, life path, and birthday number.`.replace(/\s+/g, " ").trim(),
+    );
+  }
+  const numbers: string[] = [];
+  if (lifePath) {
+    numbers.push(`A life path of ${lifePath} sits under that. ${NUMBER_COLOR[lifePath] ?? ""}`.trim());
+  }
+  if (birthday && birthday !== lifePath) {
+    numbers.push(`The birthday number ${birthday} colors the day itself. ${NUMBER_COLOR[birthday] ?? ""}`.trim());
+  }
+  if (expression && expression !== lifePath && expression !== birthday && sign) {
+    numbers.push(
+      `The name carries an expression number of ${expression}${safeName.split(/\s+/).length < 2 ? ", from the name that was entered" : ""}. ${NUMBER_COLOR[expression] ?? ""}`.trim(),
+    );
+  }
+  if (numbers.length) paragraphs.push(numbers.join(" ").replace(/\s+/g, " ").trim());
   const savedPlace = [notes?.birthTime?.trim(), notes?.birthPlace?.trim()].filter(Boolean);
-  const scope = !parsed
-    ? " Add a birth date for the sun sign, life path, and birthday number."
-    : savedPlace.length
-      ? " Birth time and place are saved with this profile. This reading uses the sun sign and the numbers from the date and name. Rising sign and houses are not calculated."
-      : "";
-  const nameNote =
-    safeName.split(/\s+/).length < 2 ? " The expression number uses the name that was entered." : "";
+  if (!parsed && !expression) {
+    paragraphs.push(`${first}'s profile can grow from here. A birth date adds a sun sign, a life path, and a birthday number.`);
+  } else if (savedPlace.length) {
+    paragraphs.push(
+      "Birth time and place are saved with this profile. This reading uses the sun sign and the numbers from the date and name. Rising sign and houses are not calculated.",
+    );
+  }
   const limited = !parsed;
-  const reading = `${opening} ${color}${scope}${nameNote}`.replace(/\s+/g, " ").trim();
+  const reading = paragraphs.join("\n\n").trim();
 
   return {
     sunSign: sign,
